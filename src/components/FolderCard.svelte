@@ -6,7 +6,7 @@
   import { openInBackgroundTabs } from '../lib/links';
   import { settings } from '../lib/settings-store.svelte';
   import { collectLinks, countLinks, pathKey, type BNode } from '../lib/tree';
-  import { DRAG_MIME, acceptsDrag, clearHint, drag, dropEdge, endDrag, hint, isDragging, openDialog, setHint, startDrag } from '../lib/ui.svelte';
+  import { DRAG_MIME, acceptsDrag, clearHint, drag, endDrag, hint, isDragging, openDialog, setHint, startDrag } from '../lib/ui.svelte';
 
   let { node, depth, path }: { node: BNode; depth: number; path: string[] } = $props();
 
@@ -31,7 +31,8 @@
     { label: 'Delete folder', icon: 'trash' as const, danger: true, run: () => requestDelete(node) },
   ]);
 
-  // Dragging the header moves the whole card; cards reorder left/right among themselves.
+  // Dragging the header moves the whole card. Where it lands is worked out by the
+  // grid in App.svelte, so card drags are left to bubble up to it.
   function ondragstart(e: DragEvent) {
     startDrag({ id: node.id, parentId: node.parentId!, index: node.index!, isFolder: true, isCard: true });
     e.dataTransfer!.effectAllowed = 'move';
@@ -40,29 +41,26 @@
   }
 
   function ondragover(e: DragEvent) {
-    if (!acceptsDrag(e) || drag.item?.id === node.id) return;
+    if (drag.item?.isCard || !acceptsDrag(e)) return;
     e.preventDefault();
-    if (drag.item?.isCard) setHint(node.id, dropEdge(e, el, 'x'));
-    else setHint(node.id, 'inside'); // anywhere not over a row: append to this folder
+    setHint(node.id, 'inside'); // anywhere not over a row: append to this folder
   }
 
   function ondrop(e: DragEvent) {
-    if (drag.item?.id === node.id) return;
+    if (drag.item?.isCard) return;
     e.preventDefault();
-    const card = drag.item?.isCard;
-    const edge = dropEdge(e, el, 'x');
     clearHint();
-    if (card) void dropInto(e, node.parentId!, node.index! + (edge === 'after' ? 1 : 0));
-    else void dropInto(e, node.id);
+    void dropInto(e, node.id);
   }
 
   function onleave(e: DragEvent) {
-    if (!el.contains(e.relatedTarget as Node | null)) clearHint(node.id);
+    if (!drag.item?.isCard && !el.contains(e.relatedTarget as Node | null)) clearHint(node.id);
   }
 </script>
 
 <section
   bind:this={el}
+  data-card-id={node.id}
   class="card glass"
   class:dragging={isDragging(node.id)}
   class:drop-inside={hint.id === node.id && hint.edge === 'inside'}
@@ -119,22 +117,24 @@
     box-shadow: var(--shadow), inset 0 0 0 2px var(--accent);
     background: color-mix(in oklab, var(--accent) 10%, var(--surface));
   }
+  /* Drawn in the gap between cards (--gap is 16px) so showing it doesn't shift the layout. */
   .card.drop-before::before,
   .card.drop-after::after {
     content: '';
     position: absolute;
-    top: 8px;
-    bottom: 8px;
-    width: 3px;
+    left: 8px;
+    right: 8px;
+    height: 3px;
     border-radius: 3px;
     background: var(--accent);
     box-shadow: 0 0 0 4px var(--accent-soft);
+    pointer-events: none;
   }
   .card.drop-before::before {
-    left: -10px;
+    top: -10px;
   }
   .card.drop-after::after {
-    right: -10px;
+    bottom: -10px;
   }
 
   header {

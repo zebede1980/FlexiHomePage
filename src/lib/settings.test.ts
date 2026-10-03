@@ -14,6 +14,7 @@ describe('normalizeSettings', () => {
       cardWidth: 9999, // clamped
       rootPath: ['Bookmarks', 'Home'],
       collapsed: ['ok', 3], // not all strings
+      cardLayout: [['a'], 'b'], // not all columns are arrays
       searchEngine: 'https://x.test/?q=', // missing %s
       unknownFutureField: true,
     });
@@ -22,6 +23,7 @@ describe('normalizeSettings', () => {
     expect(s.cardWidth).toBe(440);
     expect(s.rootPath).toEqual(['Bookmarks', 'Home']);
     expect(s.collapsed).toEqual([]);
+    expect(s.cardLayout).toEqual([]);
     expect(s.searchEngine).toBe(DEFAULT_SETTINGS.searchEngine);
     expect(s).not.toHaveProperty('unknownFutureField');
   });

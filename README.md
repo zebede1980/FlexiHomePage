@@ -7,9 +7,10 @@ your real browser bookmarks.
   and loose bookmarks become pinned tiles across the top. Nested folders expand
   in place.
 - **Rearrange by dragging.** Drag bookmarks between cards, into sub-folders, or
-  onto the pinned row; drag a card's header to reorder cards. Drop a link from
-  the address bar onto a card to save it. Every change is a real bookmark
-  change, so Vivaldi's bookmark panel stays in step.
+  onto the pinned row; drag a card's header to place it anywhere in any column
+  (other cards stay put). Drop a link from the address bar onto a card to save
+  it. Bookmark moves are real bookmark changes, so Vivaldi's bookmark panel
+  stays in step; the card arrangement is a synced setting.
 - **Search.** Start typing anywhere: matches bookmarks by name, site and folder,
   goes straight to typed addresses, or searches the web.
 - **Looks.** Light/dark/auto theme, accent colour, gradient or image

@@ -10,8 +10,9 @@
   import { IMAGE_BACKGROUND, backgroundCss } from './lib/backgrounds';
   import { bookmarks } from './lib/bookmarks.svelte';
   import { settings } from './lib/settings-store.svelte';
-  import { collectLinks, depthOf, isFolder, pathTo, resolveHome, visibleChildren } from './lib/tree';
-  import { drag, openDialog, panel } from './lib/ui.svelte';
+  import { arrangeColumns, moveBetweenColumns } from './lib/layout';
+  import { collectLinks, depthOf, isFolder, pathKey, pathTo, resolveHome, visibleChildren, type BNode } from './lib/tree';
+  import { clearHint, drag, endDrag, hint, openDialog, panel, setHint } from './lib/ui.svelte';
 
   const s = $derived(settings.value);
 
@@ -63,12 +64,65 @@
   const allLinks = $derived(bookmarks.tree ? collectLinks(bookmarks.tree) : []);
 
   // ---- masonry ----
-  // Cards are dealt round-robin into columns, so reading order stays left-to-right
-  // while short cards don't leave holes under them.
+  // Cards sit in the columns the user arranged them into (see lib/layout.ts);
+  // until they've moved one, they're dealt round-robin.
   const GAP = 16;
   let gridWidth = $state(0);
   const columnCount = $derived(Math.max(1, Math.floor((gridWidth + GAP) / (s.cardWidth + GAP))));
-  const columns = $derived(Array.from({ length: columnCount }, (_, c) => cards.filter((_, i) => i % columnCount === c)));
+  const cardKey = (card: BNode) => pathKey([...homePath, card.title]);
+  const columns = $derived(arrangeColumns(cards, cardKey, s.cardLayout, columnCount));
+
+  // ---- moving cards ----
+  // The whole grid is one drop target, so there are no dead zones: the nearest
+  // column wins, and the slot is how many of its other cards' midpoints are above
+  // the pointer. That includes the empty space under a short column.
+  const columnEls: HTMLElement[] = [];
+
+  function slotAt(e: DragEvent) {
+    let col = 0;
+    let best = Infinity;
+    columnEls.forEach((el, i) => {
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const dist = Math.max(r.left - e.clientX, 0, e.clientX - r.right);
+      if (dist < best) [best, col] = [dist, i];
+    });
+    const others = [...columnEls[col].querySelectorAll<HTMLElement>(':scope > [data-card-id]')].filter(
+      (el) => el.dataset.cardId !== drag.item?.id,
+    );
+    const index = others.filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.top + r.height / 2 < e.clientY;
+    }).length;
+    return { col, index, others };
+  }
+
+  function onGridOver(e: DragEvent) {
+    if (!drag.item?.isCard) return;
+    e.preventDefault();
+    const { col, index, others } = slotAt(e);
+    if (index < others.length) setHint(others[index].dataset.cardId!, 'before');
+    else if (others.length) setHint(others[others.length - 1].dataset.cardId!, 'after');
+    else setHint(`column:${col}`, 'inside');
+  }
+
+  function onGridDrop(e: DragEvent) {
+    if (!drag.item?.isCard) return;
+    e.preventDefault();
+    const id = drag.item.id;
+    const to = slotAt(e);
+    endDrag();
+    const fromCol = columns.findIndex((c) => c.some((n) => n.id === id));
+    if (fromCol < 0) return;
+    const from = { col: fromCol, index: columns[fromCol].findIndex((n) => n.id === id) };
+    if (from.col === to.col && from.index === to.index) return;
+    const next = moveBetweenColumns(columns, from, to);
+    settings.update({ cardLayout: next.map((c) => c.map(cardKey)) });
+  }
+
+  function onGridLeave(e: DragEvent) {
+    if (drag.item?.isCard && !(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) clearHint();
+  }
 </script>
 
 <!-- Shown in place of any section that throws, so one bad bookmark can't blank the page. -->
@@ -121,9 +175,17 @@
     </svelte:boundary>
 
     {#if cards.length}
-      <div class="grid" bind:clientWidth={gridWidth} style:--gap="{GAP}px">
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="grid"
+        bind:clientWidth={gridWidth}
+        style:--gap="{GAP}px"
+        ondragover={onGridOver}
+        ondrop={onGridDrop}
+        ondragleave={onGridLeave}
+      >
         {#each columns as column, ci (ci)}
-          <div class="column">
+          <div class="column" bind:this={columnEls[ci]} class:drop-empty={hint.id === `column:${ci}`}>
             {#each column as card (card.id)}
               <svelte:boundary onerror={(e) => console.error('[FlexiHome] card', card.title, e)}>
                 <FolderCard node={card} depth={homeDepth + 1} path={[...homePath, card.title]} />
@@ -176,10 +238,10 @@
     gap: 26px;
     margin-bottom: 4px;
   }
+  /* Columns stretch to the tallest one so the space under a short column is still a drop target. */
   .grid {
     display: flex;
     gap: var(--gap);
-    align-items: flex-start;
   }
   /* minmax(0, 1fr) rather than the implicit `auto` column: an auto track grows to
      the widest unbreakable title, pushing cards over their neighbours. */
@@ -188,7 +250,14 @@
     min-width: 0;
     display: grid;
     grid-template-columns: minmax(0, 1fr);
+    align-content: start;
     gap: var(--gap);
+    border-radius: var(--radius-lg);
+  }
+  .column.drop-empty {
+    outline: 2px dashed var(--accent);
+    outline-offset: -2px;
+    background: var(--accent-soft);
   }
   .toolbar {
     position: fixed;

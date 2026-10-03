@@ -32,6 +32,8 @@ export interface Settings {
   collapsed: string[];
   /** pathKey()s of nested folders the user expanded. */
   expanded: string[];
+  /** Top-level cards by column, each a list of pathKey()s from top to bottom. */
+  cardLayout: string[][];
 }
 
 export const SEARCH_ENGINES: { label: string; url: string }[] = [
@@ -64,6 +66,7 @@ export const DEFAULT_SETTINGS: Settings = {
   previewLimit: 10,
   collapsed: [],
   expanded: [],
+  cardLayout: [],
 };
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
@@ -71,6 +74,7 @@ const isStr = (x: unknown): x is string => typeof x === 'string';
 const isBool = (x: unknown): x is boolean => typeof x === 'boolean';
 const isNum = (x: unknown): x is number => typeof x === 'number' && Number.isFinite(x);
 const strArr = (x: unknown): string[] | null => (Array.isArray(x) && x.every(isStr) ? x : null);
+const strArr2 = (x: unknown): string[][] | null => (Array.isArray(x) && x.every((c) => strArr(c)) ? x : null);
 
 /** Merges arbitrary input over the defaults, dropping anything malformed. */
 export function normalizeSettings(raw: unknown): Settings {
@@ -97,6 +101,7 @@ export function normalizeSettings(raw: unknown): Settings {
     previewLimit: isNum(r.previewLimit) ? clamp(Math.round(r.previewLimit), 3, 100) : d.previewLimit,
     collapsed: strArr(r.collapsed) ?? d.collapsed,
     expanded: strArr(r.expanded) ?? d.expanded,
+    cardLayout: strArr2(r.cardLayout) ?? d.cardLayout,
   };
 }
 
