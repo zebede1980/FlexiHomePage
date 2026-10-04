@@ -3,6 +3,7 @@
   import Icon from './Icon.svelte';
   import LinkRow from './LinkRow.svelte';
   import Menu from './Menu.svelte';
+  import { glide } from '../lib/fx/pointer';
   import { dropInto, requestDelete } from '../lib/actions';
   import { openInBackgroundTabs } from '../lib/links';
   import { settings } from '../lib/settings-store.svelte';
@@ -25,6 +26,7 @@
   } = $props();
 
   let showAll = $state(false);
+  const gliding = $derived(settings.value.style === 'aurora' && settings.value.effects);
   const items = $derived(visibleChildren(folder, depth));
   const shown = $derived(limit && !showAll ? items.slice(0, limit) : items);
   const remaining = $derived(items.length - shown.length);
@@ -78,7 +80,8 @@
   }
 </script>
 
-<div class="list" role="list">
+<div class="list" role="list" data-glide={gliding ? '' : undefined} use:glide={gliding}>
+  {#if gliding}<span class="glide-pill" aria-hidden="true"></span>{/if}
   {#each shown as child (child.id)}
     {#if isFolder(child)}
       {@const childPath = [...path, child.title]}
@@ -134,6 +137,7 @@
 
 <style>
   .list {
+    position: relative;
     display: grid;
     grid-template-columns: minmax(0, 1fr); /* long titles ellipsize instead of widening the card */
     gap: 1px;
@@ -283,6 +287,41 @@
   :global([data-style='constellation']) .nested {
     border-left-style: dashed;
     border-left-color: var(--border);
+  }
+
+  /* ---- Aurora: one highlight per list, gliding between rows in each site's colour ---- */
+  .glide-pill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--row-h);
+    border-radius: var(--radius-sm);
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--pc) 30%, transparent),
+      color-mix(in oklab, var(--pc) 8%, transparent)
+    );
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--pc) 35%, transparent);
+    transition:
+      translate 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+      height 0.3s var(--ease),
+      opacity 0.25s,
+      --pc 0.3s;
+  }
+  .glide-pill:global(.on) {
+    opacity: 1;
+  }
+  :global(body.is-dragging) .glide-pill {
+    opacity: 0;
+  }
+  [data-glide] > .sub > .row:hover {
+    background: none;
+  }
+  :global([data-style='aurora']) .toggle > :global(svg) {
+    filter: drop-shadow(0 0 6px color-mix(in oklab, var(--accent) 60%, transparent));
   }
 
   :global([data-style='dotfield']) .toggle {

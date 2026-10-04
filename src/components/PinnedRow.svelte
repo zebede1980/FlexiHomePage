@@ -3,7 +3,7 @@
   import Icon from './Icon.svelte';
   import { dropInto, isInternalUrl, navigate, requestDelete } from '../lib/actions';
   import { brandColor } from '../lib/brand-color.svelte';
-  import { magnify } from '../lib/fx/pointer';
+  import { magnet, magnify } from '../lib/fx/pointer';
   import { preview } from '../lib/preview.svelte';
   import { settings } from '../lib/settings-store.svelte';
   import { hostOf, type BNode } from '../lib/tree';
@@ -63,6 +63,7 @@
 <div
   class="pinned"
   use:magnify={settings.value.style === 'dotfield' && settings.value.effects}
+  use:magnet={settings.value.style === 'aurora' && settings.value.effects}
   class:drop-inside={hint.id === ROW_ID}
   class:empty={links.length === 0}
   role="list"
@@ -336,6 +337,67 @@
   :global([data-style='constellation']) .tile-wrap.drop-before::before,
   :global([data-style='constellation']) .tile-wrap.drop-after::after {
     height: 60px;
+  }
+
+  /* ---- Aurora: glass squircles pulled toward the pointer (--tx/--ty from use:magnet), with a brand glow ---- */
+  :global([data-style='aurora']) .pinned {
+    gap: 10px;
+  }
+  :global([data-style='aurora']) .tile:hover {
+    background: none;
+  }
+  :global([data-style='aurora']) .icon {
+    position: relative;
+    width: 62px;
+    height: 62px;
+    border-radius: 20px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.03));
+    border-color: rgba(255, 255, 255, 0.12);
+    translate: var(--tx, 0) var(--ty, 0);
+    transition:
+      translate 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+      box-shadow 0.3s,
+      border-color 0.3s;
+  }
+  /* Brand-coloured bloom behind the icon */
+  :global([data-style='aurora']) .icon::after {
+    content: '';
+    position: absolute;
+    inset: 8px;
+    z-index: -1;
+    border-radius: inherit;
+    background: var(--c);
+    filter: blur(18px);
+    opacity: 0;
+    transition:
+      opacity 0.35s,
+      inset 0.35s;
+  }
+  :global([data-style='aurora']) .tile:hover .icon {
+    transform: none;
+    border-color: color-mix(in oklab, var(--c) 60%, white 10%);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+    transition:
+      translate 0.12s linear,
+      box-shadow 0.3s,
+      border-color 0.3s;
+  }
+  :global([data-style='aurora']) .tile:hover .icon::after {
+    opacity: 0.85;
+    inset: -4px;
+  }
+  :global([data-style='aurora']) .icon > :global(*) {
+    transition: scale 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  :global([data-style='aurora']) .tile:hover .icon > :global(*) {
+    scale: 1.12;
+  }
+  :global([data-style='aurora']) .label {
+    color: var(--ink-muted);
+    transition: color 0.2s;
+  }
+  :global([data-style='aurora']) .tile:hover .label {
+    color: var(--ink);
   }
 
   /* ---- Dot Field: a dock that magnifies under the pointer (--s comes from use:magnify) ---- */

@@ -13,6 +13,7 @@
   import { bookmarks } from './lib/bookmarks.svelte';
   import { settings } from './lib/settings-store.svelte';
   import { styleDef } from './lib/styles';
+  import { spotlight } from './lib/fx/pointer';
   import { arrangeColumns, moveBetweenColumns } from './lib/layout';
   import { collectLinks, depthOf, isFolder, pathKey, pathTo, resolveHome, visibleChildren, type BNode } from './lib/tree';
   import { clearHint, drag, endDrag, hint, openDialog, panel, setHint } from './lib/ui.svelte';
@@ -45,6 +46,7 @@
     root.style.background = ''; // boot.js's pre-paint colour; the stylesheet takes over now
     root.dataset.theme = theme;
     root.dataset.style = look.id;
+    root.dataset.motion = s.effects ? 'on' : 'off';
     root.dataset.ink = look.customBackground && s.background === IMAGE_BACKGROUND && s.backgroundImage ? 'light' : '';
     root.style.setProperty('--accent', accent);
     root.style.setProperty('--accent-ink', inkFor(accent));
@@ -142,7 +144,7 @@
   </div>
 {/snippet}
 
-<Backdrop style={look.id} {theme} css={background} animate={s.effects} />
+<Backdrop style={look.id} {theme} {accent} css={background} animate={s.effects} />
 
 <div class="toolbar">
   {#if home}
@@ -188,6 +190,7 @@
       <div
         class="grid"
         bind:clientWidth={gridWidth}
+        use:spotlight={look.id === 'aurora'}
         style:--gap="{GAP}px"
         ondragover={onGridOver}
         ondrop={onGridDrop}

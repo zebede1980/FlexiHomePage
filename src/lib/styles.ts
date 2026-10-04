@@ -32,6 +32,16 @@ export const STYLES: StyleDef[] = [
       'radial-gradient(60% 70% at 20% 20%, #7c6cffaa, transparent), radial-gradient(50% 60% at 85% 20%, #7dd3fc88, transparent), radial-gradient(60% 60% at 55% 110%, #f0abfc66, transparent), #1a1c2e',
   },
   {
+    id: 'aurora',
+    label: 'Aurora',
+    description: 'Drifting colour that leans toward your pointer; glass that lights up as you pass.',
+    themes: ['dark'],
+    customBackground: false,
+    animated: true,
+    swatch:
+      'radial-gradient(60% 70% at 18% 20%, #8b7bffcc, transparent), radial-gradient(50% 60% at 85% 15%, #28bef0aa, transparent), radial-gradient(60% 60% at 60% 105%, #dc46c8aa, transparent), #070618',
+  },
+  {
     id: 'constellation',
     label: 'Constellation',
     description: 'A star field that reacts to your pointer, with HUD-style panels.',

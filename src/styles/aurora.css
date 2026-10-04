@@ -1,0 +1,52 @@
+/* Aurora: dark glass over drifting colour. Component flourishes live in each
+   component as :global([data-style='aurora']) rules. The extra [data-theme]
+   makes these beat the light/dark tokens in app.css. The user's accent drives
+   the main glow, so --accent isn't set here. */
+
+/* Registered so the gliding row highlight can fade between site colours,
+   and the search border can spin. */
+@property --pc {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: #8b7bff;
+}
+@property --angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+:root[data-style='aurora'][data-theme] {
+  color-scheme: dark;
+  --accent-2: #3dd6f5;
+  --accent-3: #f472d0;
+  --bg: #070618;
+  --surface: rgba(16, 14, 36, 0.5);
+  --surface-strong: rgba(22, 20, 46, 0.78);
+  --surface-solid: #16142e;
+  --hover: rgba(255, 255, 255, 0.07);
+  --active: rgba(255, 255, 255, 0.12);
+  --text: #eef0ff;
+  --text-muted: rgba(228, 231, 255, 0.66);
+  --text-faint: rgba(228, 231, 255, 0.42);
+  --ink: #f4f5ff;
+  --ink-muted: rgba(228, 231, 255, 0.7);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 20px 50px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 0 0 1px rgba(0, 0, 0, 0.2), 0 30px 80px rgba(0, 0, 0, 0.55);
+  --danger: #ff7a9a;
+  --radius-sm: 10px;
+  --radius: 14px;
+  --radius-lg: 22px;
+}
+
+/* No backdrop blur in this style. The background redraws every frame, so each
+   blurred element would re-blur its backdrop every frame too, and blurring
+   gradients this soft barely changes how they look anyway. */
+[data-style='aurora'] .glass,
+[data-style='aurora'] .results,
+[data-style='aurora'] .preview {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}

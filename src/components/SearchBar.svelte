@@ -302,6 +302,50 @@
     font-size: 11px;
   }
 
+  /* ---- Aurora: a conic border that spins up when you focus ---- */
+  :global([data-style='aurora']) .bar {
+    position: relative;
+    height: 54px;
+  }
+  :global([data-style='aurora']) .bar::before {
+    content: '';
+    position: absolute;
+    inset: -1.5px;
+    padding: 1.5px;
+    border-radius: inherit;
+    pointer-events: none;
+    background: conic-gradient(from var(--angle), var(--accent), var(--accent-2), var(--accent-3), var(--accent));
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+    opacity: 0.25;
+    transition: opacity 0.3s;
+    animation: spin 4s linear infinite paused;
+  }
+  :global([data-style='aurora']) .bar:focus-within::before {
+    opacity: 1;
+    animation-play-state: running;
+  }
+  :global([data-style='aurora']) .bar:focus-within {
+    box-shadow: 0 10px 50px color-mix(in oklab, var(--accent) 35%, transparent);
+  }
+  @keyframes spin {
+    to {
+      --angle: 360deg;
+    }
+  }
+  :global([data-style='aurora']) .results {
+    background: rgba(22, 20, 46, 0.94);
+  }
+  :global([data-style='aurora']) li.active {
+    background: linear-gradient(90deg, color-mix(in oklab, var(--accent) 28%, transparent), color-mix(in oklab, var(--accent) 6%, transparent));
+  }
+
   /* ---- Dot Field: a fat paper pill that widens when you use it ---- */
   :global([data-style='dotfield']) .search {
     width: min(560px, 100%);

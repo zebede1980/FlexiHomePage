@@ -17,6 +17,7 @@
   const total = $derived(countLinks(node));
   const hud = $derived(settings.value.style === 'constellation');
   const dot = $derived(settings.value.style === 'dotfield');
+  const aurora = $derived(settings.value.style === 'aurora');
   const fx = $derived(hud && settings.value.effects);
   const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -78,6 +79,10 @@
   ondragleave={onleave}
   {ondrop}
 >
+  {#if aurora}
+    <!-- Lit from --mx/--my, which App's use:spotlight keeps up to date. -->
+    <i class="rim" data-spot aria-hidden="true"></i><i class="sheen" data-spot aria-hidden="true"></i>
+  {/if}
   {#if hud}
     <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
     <div class="glare"></div>
@@ -88,6 +93,7 @@
     <button class="title" aria-expanded={!collapsed} onclick={toggle} title={collapsed ? 'Expand' : 'Collapse'}>
       <span class="chev" class:open={!collapsed}><Icon name="chevron-right" size={14} /></span>
       {#if hud}<span class="idx">{pad2(index + 1)}</span>{/if}
+      {#if aurora}<span class="orb" style:--fc={tileColor(node.title)} aria-hidden="true"></span>{/if}
       {#if dot}<span class="badge" style:background={tileColor(node.title)} aria-hidden="true">{(node.title.trim()[0] ?? '?').toUpperCase()}</span>{/if}
       <h2>
         <span class="sr-only">{node.title || 'Untitled folder'}</span>
@@ -344,6 +350,86 @@
     background: none;
     color: var(--text-faint);
     font: 500 11px var(--font-mono);
+  }
+
+  /* ---- Aurora: glass whose border and sheen light up from the pointer ---- */
+  :global([data-style='aurora']) .card {
+    isolation: isolate;
+    padding: 8px;
+    animation: bloom 0.8s var(--ease) backwards;
+    animation-delay: calc(0.15s + var(--i, 0) * 0.07s);
+  }
+  @keyframes bloom {
+    from {
+      opacity: 0;
+      translate: 0 24px;
+      filter: blur(10px);
+    }
+  }
+  .rim,
+  .sheen {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+  /* A 1px ring: the gradient is masked down to the border box. */
+  .rim {
+    z-index: 1;
+    padding: 1px;
+    background:
+      radial-gradient(
+        340px circle at var(--mx, -999px) var(--my, -999px),
+        color-mix(in oklab, var(--accent) 45%, white),
+        color-mix(in oklab, var(--accent-2) 40%, transparent) 35%,
+        transparent 60%
+      ),
+      linear-gradient(rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.07));
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask-composite: exclude;
+  }
+  .sheen {
+    z-index: -1;
+    background: radial-gradient(500px circle at var(--mx, -999px) var(--my, -999px), color-mix(in oklab, var(--accent) 13%, transparent), transparent 45%);
+  }
+  :global([data-style='aurora']) .card.drop-inside .rim {
+    background: linear-gradient(var(--accent), var(--accent));
+  }
+  .orb {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    margin-left: 2px;
+    border-radius: 50%;
+    background: var(--fc);
+    box-shadow: 0 0 12px var(--fc);
+  }
+  :global([data-style='aurora']) .chev {
+    display: none;
+  }
+  :global([data-style='aurora']) .title {
+    gap: 10px;
+  }
+  :global([data-style='aurora']) h2 {
+    flex: 1;
+    font-size: 15px;
+    letter-spacing: 0.01em;
+  }
+  :global([data-style='aurora']) .count {
+    padding: 2px 8px;
+    border: 1px solid color-mix(in oklab, var(--accent) 30%, transparent);
+    background: color-mix(in oklab, var(--accent) 18%, transparent);
+    color: color-mix(in oklab, var(--accent) 35%, white);
+  }
+  .title[aria-expanded='false'] .orb {
+    opacity: 0.4;
+    box-shadow: none;
   }
 
   /* ---- Dot Field: paper cards that lift, with a letter badge ---- */

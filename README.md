@@ -14,7 +14,9 @@ your real browser bookmarks.
 - **Search.** Start typing anywhere: matches bookmarks by name, site and folder,
   goes straight to typed addresses, or searches the web.
 - **Looks.** Pick a style: *Classic* (glass cards, light/dark/auto theme,
-  accent colour, gradient or image backgrounds), *Constellation* (a star
+  accent colour, gradient or image backgrounds), *Aurora* (drifting colour in
+  your accent that leans toward the pointer, glass cards whose edges light up
+  as you pass, magnetic pinned icons), *Constellation* (a star
   field that reacts to the pointer, HUD-style panels) or *Dot Field* (warm
   light/dark paper, a dot grid that swells around the pointer, a magnifying
   dock for pinned links). Rest the pointer on a

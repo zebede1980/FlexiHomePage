@@ -134,6 +134,32 @@
     opacity: 1;
   }
 
+  /* ---- Aurora: light-catching numerals ---- */
+  :global([data-style='aurora']) .time {
+    font-weight: 200;
+    font-size: clamp(68px, 9vw, 116px);
+    letter-spacing: -0.04em;
+    text-shadow: none;
+    background: linear-gradient(100deg, #fff 20%, color-mix(in oklab, var(--accent) 35%, white) 40%, #9fe9ff 50%, #fff 60%, #fff) 0 0 / 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shimmer 9s linear infinite;
+  }
+  @keyframes shimmer {
+    to {
+      background-position: -300% 0;
+    }
+  }
+  :global([data-motion='off']) .time,
+  :global([data-motion='off']) .colon {
+    animation: none;
+  }
+  :global([data-style='aurora']) .sub > span:first-child {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
   /* ---- Dot Field: editorial serif, digits that drop into place ---- */
   :global([data-style='dotfield']) .time {
     font: italic 400 clamp(72px, 10vw, 128px) / 0.95 var(--font-serif);

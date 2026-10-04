@@ -143,3 +143,151 @@ export const magnify: Action<HTMLElement, boolean> = (node, enabled = false) => 
     },
   };
 };
+
+/**
+ * Sets --mx/--my on every `[data-spot]` element inside `node`: the pointer
+ * position relative to that element, wherever the pointer is. Cards use it for
+ * a glow that reaches their borders even from a neighbouring card.
+ *
+ * Kept cheap on purpose, since it runs every frame the pointer moves: at most
+ * once per frame, all measuring before any writing (interleaving them forces a
+ * style recalc per element), and only written to empty leaf elements, because a
+ * custom property set on a card would restyle every row inside it.
+ */
+export const spotlight: Action<HTMLElement, boolean> = (node, enabled = false) => {
+  let on = enabled;
+  let pending = false;
+  let x = -9999;
+  let y = -9999;
+
+  function apply() {
+    pending = false;
+    const els = [...node.querySelectorAll<HTMLElement>('[data-spot]')];
+    const rects = els.map((el) => el.getBoundingClientRect());
+    els.forEach((el, i) => {
+      el.style.setProperty('--mx', `${Math.round(x - rects[i].left)}px`);
+      el.style.setProperty('--my', `${Math.round(y - rects[i].top)}px`);
+    });
+  }
+  function schedule() {
+    if (!on || pending) return;
+    pending = true;
+    requestAnimationFrame(apply);
+  }
+  function move(e: PointerEvent) {
+    x = e.clientX;
+    y = e.clientY;
+    schedule();
+  }
+  function clear() {
+    for (const el of node.querySelectorAll<HTMLElement>('[data-spot]')) {
+      el.style.removeProperty('--mx');
+      el.style.removeProperty('--my');
+    }
+  }
+
+  addEventListener('pointermove', move);
+  addEventListener('scroll', schedule, { passive: true });
+  return {
+    update(v) {
+      on = v;
+      if (!v) clear();
+    },
+    destroy() {
+      removeEventListener('pointermove', move);
+      removeEventListener('scroll', schedule);
+    },
+  };
+};
+
+/**
+ * One highlight per list that glides to whichever row is hovered. `node` is
+ * the `[role="list"]` and must contain a `.glide-pill` child; rows are
+ * `[role="listitem"]` and may set --c for the pill's colour. Nested lists
+ * glide their own pill, so this one hides when the pointer is in a child list.
+ */
+export const glide: Action<HTMLElement, boolean> = (node, enabled = false) => {
+  let on = enabled;
+  const pill = () => node.querySelector<HTMLElement>(':scope > .glide-pill');
+
+  function over(e: PointerEvent) {
+    const p = pill();
+    if (!on || !p || drag.active) return;
+    const row = (e.target as Element).closest<HTMLElement>('[role="listitem"]');
+    if (!row || row.closest('[role="list"]') !== node) {
+      if (row) p.classList.remove('on'); // inside a nested list
+      return;
+    }
+    // Appearing: jump straight to the row; only glide between rows once visible.
+    const jump = !p.classList.contains('on');
+    if (jump) p.style.transition = 'none';
+    p.style.translate = `0 ${row.offsetTop}px`;
+    p.style.height = `${row.offsetHeight}px`;
+    if (jump) {
+      void p.offsetWidth; // commit the position before transitions come back
+      p.style.transition = '';
+    }
+    p.style.setProperty('--pc', row.style.getPropertyValue('--c') || 'var(--accent)'); // folders have no site colour
+    p.classList.add('on');
+  }
+  function leave() {
+    pill()?.classList.remove('on');
+  }
+
+  node.addEventListener('pointerover', over);
+  node.addEventListener('pointerleave', leave);
+  node.addEventListener('dragstart', leave);
+  return {
+    update(v) {
+      on = v;
+      if (!v) leave();
+    },
+    destroy() {
+      node.removeEventListener('pointerover', over);
+      node.removeEventListener('pointerleave', leave);
+      node.removeEventListener('dragstart', leave);
+    },
+  };
+};
+
+/**
+ * Pulls each `[role="listitem"]` child's icon toward the pointer while it's
+ * over that item, via --tx/--ty (the stylesheet applies them).
+ */
+export const magnet: Action<HTMLElement, boolean> = (node, enabled = false) => {
+  let on = enabled;
+  const STRENGTH = 0.28;
+
+  function move(e: PointerEvent) {
+    if (!on || drag.active || reducedMotion()) return;
+    const item = (e.target as Element).closest<HTMLElement>('[role="listitem"]');
+    if (!item || item.parentElement !== node) return;
+    const r = item.getBoundingClientRect();
+    item.style.setProperty('--tx', `${((e.clientX - r.left - r.width / 2) * STRENGTH).toFixed(1)}px`);
+    item.style.setProperty('--ty', `${((e.clientY - r.top - r.height / 2) * STRENGTH).toFixed(1)}px`);
+  }
+  function out(e: PointerEvent) {
+    const item = (e.target as Element).closest<HTMLElement>('[role="listitem"]');
+    if (item && !item.contains(e.relatedTarget as Node | null)) reset(item);
+  }
+  function reset(item: HTMLElement) {
+    item.style.removeProperty('--tx');
+    item.style.removeProperty('--ty');
+  }
+  const resetAll = () => node.querySelectorAll<HTMLElement>(':scope > [role="listitem"]').forEach(reset);
+
+  node.addEventListener('pointermove', move);
+  node.addEventListener('pointerout', out);
+  node.addEventListener('dragstart', resetAll);
+  return {
+    update(v) {
+      on = v;
+      if (!v) resetAll();
+    },
+    destroy() {
+      node.removeEventListener('pointermove', move);
+      node.removeEventListener('pointerout', out);
+      node.removeEventListener('dragstart', resetAll);
+    },
+  };
+};

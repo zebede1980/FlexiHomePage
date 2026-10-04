@@ -327,6 +327,34 @@
     color: var(--text);
   }
 
+  /* ---- Aurora: glass that springs in out of a blur ---- */
+  :global([data-style='aurora']) .preview {
+    background: rgba(22, 20, 46, 0.94);
+    backdrop-filter: none;
+    filter: blur(6px);
+    scale: 0.94;
+    transition:
+      opacity 0.25s,
+      scale 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+      filter 0.25s,
+      top 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+      left 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  :global([data-style='aurora']) .preview.show {
+    filter: none;
+    scale: 1;
+  }
+  :global([data-style='aurora']) .preview.jump {
+    transition-property: opacity, scale, filter;
+  }
+  :global([data-style='aurora']) .art {
+    background: radial-gradient(120% 120% at 0% 0%, color-mix(in oklab, var(--c) 70%, white 10%), color-mix(in oklab, var(--c) 35%, #0b0a1e));
+  }
+  :global([data-style='aurora']) dd:first-of-type {
+    color: color-mix(in oklab, var(--c) 55%, white);
+    font-weight: 600;
+  }
+
   /* ---- Dot Field: a taped-on polaroid that straightens as it lands ---- */
   :global([data-style='dotfield']) .preview {
     overflow: visible;

@@ -31,6 +31,7 @@ describe('normalizeSettings', () => {
   it('accepts known styles only, so an older build never sees a style it lacks', () => {
     expect(normalizeSettings({ style: 'constellation' }).style).toBe('constellation');
     expect(normalizeSettings({ style: 'dotfield' }).style).toBe('dotfield');
+    expect(normalizeSettings({ style: 'aurora' }).style).toBe('aurora');
     expect(normalizeSettings({ style: 'vaporwave' }).style).toBe(DEFAULT_SETTINGS.style);
     expect(normalizeSettings({ effects: false, previews: 'yes' })).toMatchObject({ effects: false, previews: true });
   });

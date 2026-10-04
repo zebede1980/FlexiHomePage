@@ -246,6 +246,33 @@
     translate: 4px 0;
   }
 
+  /* ---- Aurora: the list's gliding pill does the highlight; the row just comes alive ---- */
+  :global([data-glide]) > .row:hover {
+    background: none;
+  }
+  :global([data-style='aurora']) .link {
+    color: color-mix(in oklab, var(--text) 86%, transparent);
+    transition: color 0.2s;
+  }
+  :global([data-style='aurora']) .row:hover .link {
+    color: var(--text);
+  }
+  :global([data-style='aurora']) .link > :global(img) {
+    transition:
+      scale 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+      rotate 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  :global([data-style='aurora']) .row:hover .link > :global(img) {
+    scale: 1.25;
+    rotate: -8deg;
+  }
+  :global([data-style='aurora']) .label {
+    transition: translate 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  :global([data-style='aurora']) .row:hover .label {
+    translate: 3px 0;
+  }
+
   /* ---- Dot Field: favicon tiles, a colour wash, and the domain unfolding underneath ---- */
   :global([data-style='dotfield']) .row:hover {
     background: none;

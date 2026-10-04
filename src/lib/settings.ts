@@ -4,9 +4,9 @@
 
 export type ThemeMode = 'auto' | 'light' | 'dark';
 export type Density = 'comfortable' | 'compact';
-export type StyleId = 'classic' | 'constellation' | 'dotfield';
+export type StyleId = 'classic' | 'aurora' | 'constellation' | 'dotfield';
 
-export const STYLE_IDS: StyleId[] = ['classic', 'constellation', 'dotfield'];
+export const STYLE_IDS: StyleId[] = ['classic', 'aurora', 'constellation', 'dotfield'];
 
 export interface Settings {
   v: 1;

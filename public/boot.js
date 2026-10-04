@@ -2,7 +2,7 @@
 // MV3 forbids inline scripts, hence a separate file.
 (function () {
   // Page colour per style and theme, and styles that are always dark (mirrors lib/styles.ts).
-  var DARK_ONLY = { constellation: '#040814' };
+  var DARK_ONLY = { aurora: '#070618', constellation: '#040814' };
   var PAGE = { dotfield: { light: '#f5f2ec', dark: '#15130f' } };
   var boot = {};
   try {

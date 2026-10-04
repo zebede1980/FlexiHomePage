@@ -1,4 +1,5 @@
 import './app.css';
+import './styles/aurora.css';
 import './styles/constellation.css';
 import './styles/dotfield.css';
 import { mount } from 'svelte';
