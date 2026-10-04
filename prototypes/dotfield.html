@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FlexiHome · Dot Field</title>
+<style>
+  :root {
+    --accent: #ff5b3a;
+    --font: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+    --serif: 'Sitka Banner', 'Sitka Display', 'Iowan Old Style', Georgia, serif;
+    --paper: #f5f2ec;
+    --card: #fffdf9;
+    --ink: #1f1c17;
+    --muted: #6d675c;
+    --faint: #a59e90;
+    --line: rgba(31, 28, 23, 0.08);
+    --shadow: 0 1px 2px rgba(60, 40, 10, 0.06), 0 8px 24px rgba(60, 40, 10, 0.07);
+    --shadow-lift: 0 2px 4px rgba(60, 40, 10, 0.06), 0 24px 50px rgba(60, 40, 10, 0.14);
+    --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  html { background: var(--paper); }
+  body { color: var(--ink); font: 14px/1.4 var(--font); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  a { color: inherit; text-decoration: none; }
+  #bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; }
+
+  main { width: min(1440px, 100%); margin: 0 auto; padding: clamp(48px, 10vh, 110px) clamp(16px, 4vw, 48px) 80px; display: grid; gap: 34px; }
+
+  /* ---------- clock ---------- */
+  .hero { display: grid; justify-items: center; gap: 26px; }
+  .clock { display: grid; justify-items: center; }
+  .time { font: italic 400 clamp(72px, 10vw, 128px) / 0.95 var(--serif); letter-spacing: -0.02em; font-variant-numeric: lining-nums tabular-nums; }
+  .time span { display: inline-block; animation: drop 0.8s var(--spring) both; animation-delay: calc(var(--i) * 0.06s); }
+  @keyframes drop { from { opacity: 0; translate: 0 -0.4em; rotate: -8deg; } }
+  .sub { margin: 6px 0 0; font-size: 15px; color: var(--muted); }
+  .sub b { color: var(--ink); font-weight: 600; }
+  .sub .sun { display: inline-block; width: 10px; height: 10px; margin-right: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 20%, transparent); }
+
+  /* ---------- search ---------- */
+  .search { width: min(560px, 100%); transition: width 0.5s var(--spring); }
+  .search:focus-within { width: min(680px, 100%); }
+  .bar { display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 12px 0 22px; border-radius: 999px; background: var(--card); color: var(--faint);
+    box-shadow: var(--shadow), 0 0 0 1px var(--line); transition: box-shadow 0.3s; }
+  .bar:focus-within { box-shadow: var(--shadow-lift), 0 0 0 2px var(--ink); color: var(--ink); }
+  .bar input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; color: var(--ink); font: 16px var(--font); }
+  .bar input::placeholder { color: var(--faint); }
+  kbd { display: inline-grid; place-items: center; min-width: 28px; height: 28px; border-radius: 999px; background: var(--paper); color: var(--muted); font: 600 12px var(--font); }
+
+  /* ---------- pinned: dock with magnification ---------- */
+  .dock-wrap { display: flex; justify-content: center; }
+  .dock { display: flex; align-items: flex-end; gap: 6px; height: 86px; padding: 0 14px 12px; border-radius: 26px; background: rgba(255, 253, 249, 0.75);
+    backdrop-filter: blur(12px); box-shadow: var(--shadow), 0 0 0 1px var(--line); animation: rise 0.7s 0.2s var(--spring) both; }
+  @keyframes rise { from { opacity: 0; translate: 0 20px; } }
+  .dock a { position: relative; display: grid; place-items: center; width: calc(52px * var(--s, 1)); height: calc(52px * var(--s, 1)); margin-bottom: calc((var(--s, 1) - 1) * 14px);
+    border-radius: 30%; background: var(--card); box-shadow: 0 2px 6px rgba(60, 40, 10, 0.12), 0 0 0 1px var(--line);
+    transition: width 0.18s var(--ease), height 0.18s var(--ease), margin 0.18s var(--ease); }
+  .dock.idle a { transition-duration: 0.45s; transition-timing-function: var(--spring); }
+  .dock img { width: 54%; height: 54%; }
+  .dock span { position: absolute; bottom: calc(100% + 10px); left: 50%; translate: -50% 4px; padding: 4px 10px; border-radius: 8px; background: var(--ink); color: var(--paper);
+    font-size: 12px; font-weight: 600; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.15s, translate 0.25s var(--spring); }
+  .dock a:hover span { opacity: 1; translate: -50% 0; }
+  .dock a::after { content: ''; position: absolute; bottom: -8px; width: 4px; height: 4px; border-radius: 50%; background: var(--ink); opacity: 0.35; }
+
+  /* ---------- cards ---------- */
+  .grid { display: flex; gap: 18px; align-items: flex-start; }
+  .column { flex: 1; min-width: 0; display: grid; gap: 18px; }
+  .card { position: relative; padding: 10px; border-radius: 24px; background: var(--card); box-shadow: var(--shadow), 0 0 0 1px var(--line);
+    transition: translate 0.45s var(--spring), box-shadow 0.35s, opacity 0.35s, filter 0.35s;
+    animation: rise 0.7s var(--spring) backwards; animation-delay: calc(0.3s + var(--i) * 0.07s); }
+  .card:hover { translate: 0 -4px; box-shadow: var(--shadow-lift), 0 0 0 1px var(--line); }
+  /* Focus mode: the card you're in stays sharp, the rest step back. */
+  .grid:has(.card:hover) .card:not(:hover) { opacity: 0.55; filter: saturate(0.4) blur(0.5px); }
+
+  .card header { display: flex; align-items: center; gap: 10px; padding: 6px 8px 12px; }
+  .badge { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 12px; background: var(--fc); color: #fff; font: 700 15px var(--serif);
+    transition: rotate 0.5s var(--spring), scale 0.5s var(--spring); }
+  .card:hover .badge { rotate: -10deg; scale: 1.08; }
+  .card h2 { margin: 0; flex: 1; font: 600 21px/1 var(--serif); letter-spacing: -0.01em; }
+  .card .count { font-size: 12px; font-weight: 600; color: var(--muted); }
+
+  .list { display: grid; gap: 2px; }
+  .row { position: relative; display: flex; align-items: center; gap: 11px; min-height: 38px; padding: 6px 10px; border-radius: 14px; overflow: hidden; isolation: isolate; }
+  .row::before { /* colour wash that sweeps in from the left */
+    content: ''; position: absolute; inset: 0; z-index: -1; background: color-mix(in oklab, var(--c, var(--accent)) 14%, var(--card));
+    scale: 0 1; transform-origin: left; transition: scale 0.35s var(--ease); border-radius: inherit; }
+  .row:hover::before { scale: 1 1; }
+  .fav { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 9px; background: var(--card); box-shadow: 0 0 0 1px var(--line), 0 1px 3px rgba(60, 40, 10, 0.08);
+    transition: rotate 0.4s var(--spring), scale 0.4s var(--spring); }
+  .fav img { width: 16px; height: 16px; }
+  .row:hover .fav { rotate: -8deg; scale: 1.1; }
+  .row .text { flex: 1; min-width: 0; display: grid; }
+  .row .label { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 500; }
+  /* Domain unfolds under the title on hover. */
+  .row .host { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.3s var(--ease); font-size: 11.5px; color: var(--muted); }
+  .row .host > span { overflow: hidden; }
+  .row:hover .host { grid-template-rows: 1fr; }
+  .row .go { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--ink); color: var(--paper);
+    scale: 0; transition: scale 0.35s var(--spring); }
+  .row:hover .go { scale: 1; }
+  .folder { width: 100%; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; color: inherit; }
+  .folder .fav { background: color-mix(in oklab, var(--accent) 12%, var(--card)); color: var(--accent); }
+  .folder .chev { color: var(--faint); transition: rotate 0.4s var(--spring); }
+  .folder.open .chev { rotate: 90deg; }
+  .nested { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.45s var(--ease); }
+  .nested.open { grid-template-rows: 1fr; }
+  .nested > div { overflow: hidden; margin-left: 22px; padding-left: 6px; border-left: 2px dotted var(--line); }
+
+  /* ---------- polaroid preview ---------- */
+  .preview { position: fixed; z-index: 50; width: 280px; padding: 10px 10px 14px; border-radius: 18px; pointer-events: none; background: var(--card);
+    box-shadow: 0 2px 6px rgba(60, 40, 10, 0.08), 0 30px 70px rgba(60, 40, 10, 0.22), 0 0 0 1px var(--line);
+    opacity: 0; rotate: -6deg; scale: 0.85; translate: 0 10px; transform-origin: var(--ox, left) center;
+    transition: opacity 0.2s, rotate 0.5s var(--spring), scale 0.5s var(--spring), translate 0.5s var(--spring), top 0.4s var(--spring), left 0.4s var(--spring); }
+  .preview.show { opacity: 1; rotate: -1.5deg; scale: 1; translate: 0 0; }
+  .preview h3 { margin: 12px 4px 4px; font: 600 19px/1.1 var(--serif); }
+  .preview p { margin: 0 4px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+  .chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 4px 0; }
+  .chips span { padding: 3px 9px; border-radius: 999px; background: var(--paper); font-size: 11px; font-weight: 600; color: var(--muted); }
+  .chips .h { background: color-mix(in oklab, var(--c) 16%, var(--card)); color: color-mix(in oklab, var(--c) 70%, var(--ink)); }
+  .tape { position: absolute; top: -10px; left: 50%; width: 70px; height: 20px; translate: -50% 0; rotate: 3deg; background: rgba(255, 220, 140, 0.6); }
+
+  .skel { --c: #888; height: 140px; border-radius: 10px; overflow: hidden; position: relative; background: color-mix(in oklab, var(--c) 22%, #fff); }
+  .skel-bar { display: flex; gap: 5px; align-items: center; padding: 8px 10px; background: color-mix(in oklab, var(--c) 85%, #000); }
+  .skel-bar i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, 0.55); }
+  .skel-bar span { flex: 1; height: 8px; margin-left: 10px; border-radius: 4px; background: rgba(255, 255, 255, 0.25); }
+  .skel-body { display: flex; gap: 12px; align-items: center; padding: 14px 14px 8px; }
+  .skel-body img { padding: 7px; border-radius: 12px; background: #fff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12); }
+  .skel-lines { flex: 1; display: grid; gap: 6px; }
+  .skel-lines b { display: block; height: 7px; border-radius: 4px; }
+  .skel-tiles { display: flex; gap: 6px; padding: 4px 14px; }
+  .skel-tiles u { flex: 1; height: 26px; border-radius: 6px; background: rgba(255, 255, 255, 0.7); }
+
+  .tb { display: inline-grid; place-items: center; height: 36px; padding: 0 16px; border-radius: 999px; border: 0; background: var(--card); color: var(--ink); font: 600 13px var(--font); box-shadow: var(--shadow), 0 0 0 1px var(--line); }
+  .toolbar { position: fixed; top: 14px; right: 16px; display: flex; gap: 8px; z-index: 10; }
+  .back { position: fixed; top: 14px; left: 16px; z-index: 10; }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition-duration: 0.01ms !important; } }
+</style>
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+<a class="tb back" href="./">← Prototypes</a>
+<div class="toolbar"><button class="tb">+ New folder</button><button class="tb">Settings</button></div>
+
+<main>
+  <header class="hero">
+    <div class="clock"><time class="time" id="time"></time><p class="sub" id="sub"></p></div>
+    <div class="search">
+      <label class="bar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input placeholder="Search bookmarks or the web" autocomplete="off" spellcheck="false" /><kbd>/</kbd>
+      </label>
+    </div>
+  </header>
+  <div class="dock-wrap"><nav class="dock idle" id="dock"></nav></div>
+  <div class="grid" id="grid"></div>
+</main>
+<div class="preview" id="preview" aria-hidden="true"></div>
+
+<script src="data.js"></script>
+<script>
+  const { pinned, cards, favicon, host, esc, isFolder, count, visited, visits, skeleton, reduced, hash } = FH;
+
+  let lastTime = '';
+  FH.tick((now) => {
+    const t = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    // Only re-render (and re-animate) the digits that changed.
+    if (t !== lastTime) {
+      const el = document.getElementById('time');
+      el.innerHTML = [...t].map((ch, i) => (lastTime[i] === ch ? `<span style="--i:0;animation:none">${ch}</span>` : `<span style="--i:${lastTime ? 0 : i}">${ch}</span>`)).join('');
+      lastTime = t;
+    }
+    document.getElementById('sub').innerHTML = `<span class="sun"></span><b>${FH.greeting()}</b> — ${now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}`;
+  });
+  addEventListener('keydown', (e) => { if (e.key === '/' && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); document.querySelector('input').focus(); } });
+
+  // ---------- dock ----------
+  const dock = document.getElementById('dock');
+  dock.innerHTML = pinned.map((p, i) => `<a href="${p.url}" data-link="p${i}"><img src="${favicon(p.url, 64)}" alt=""><span>${esc(p.title)}</span></a>`).join('');
+  const items = [...dock.children];
+  dock.addEventListener('pointermove', (e) => {
+    dock.classList.remove('idle');
+    for (const a of items) {
+      const r = a.getBoundingClientRect();
+      const d = Math.abs(e.clientX - (r.left + r.width / 2));
+      // Cosine falloff over ~2.5 icons either side, like the macOS dock.
+      const s = d > 150 ? 1 : 1 + 0.55 * (Math.cos((d / 150) * Math.PI) + 1) / 2;
+      a.style.setProperty('--s', s.toFixed(3));
+    }
+  });
+  dock.addEventListener('pointerleave', () => { dock.classList.add('idle'); items.forEach((a) => a.style.setProperty('--s', 1)); });
+
+  // ---------- cards ----------
+  const links = {};
+  pinned.forEach((p, i) => (links['p' + i] = { ...p, path: 'Bookmarks' }));
+  let seq = 0;
+  const chev = `<svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>`;
+  const folderIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>`;
+  function list(items, path) {
+    return items.map((it) => {
+      if (isFolder(it)) {
+        return `<button class="row folder"><span class="fav">${folderIcon}</span><span class="text"><span class="label">${esc(it.title)}</span></span><span class="count" style="color:var(--faint);font-size:12px;font-weight:600">${count(it.items)}</span>${chev}</button>
+          <div class="nested"><div><div class="list">${list(it.items, [...path, it.title])}</div></div></div>`;
+      }
+      const id = 'l' + seq++;
+      links[id] = { ...it, path };
+      return `<a class="row" href="${it.url}" data-link="${id}" style="--c:${it.color}">
+          <span class="fav"><img src="${favicon(it.url)}" alt=""></span>
+          <span class="text"><span class="label">${esc(it.title)}</span><span class="host"><span>${host(it.url)}</span></span></span>
+          <span class="go"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M7 17 17 7M8 7h9v9"/></svg></span>
+        </a>`;
+    }).join('');
+  }
+  const grid = document.getElementById('grid');
+  function layout() {
+    const cols = Math.max(1, Math.floor((grid.clientWidth + 18) / (280 + 18)));
+    const columns = Array.from({ length: cols }, () => []);
+    seq = 0;
+    cards.forEach((c, i) => columns[i % cols].push(`
+      <section class="card" style="--i:${i};--fc:oklch(0.68 0.15 ${(hash(c.title) * 7) % 360})">
+        <header><span class="badge">${esc(c.title[0])}</span><h2>${esc(c.title)}</h2><span class="count">${count(c.items)} links</span></header>
+        <div class="list">${list(c.items, [c.title])}</div>
+      </section>`));
+    grid.innerHTML = columns.map((c) => `<div class="column">${c.join('')}</div>`).join('');
+  }
+  layout();
+  addEventListener('resize', () => { clearTimeout(layout.t); layout.t = setTimeout(layout, 150); });
+  grid.addEventListener('click', (e) => {
+    const f = e.target.closest('.folder');
+    if (!f) return;
+    f.classList.toggle('open');
+    f.nextElementSibling.classList.toggle('open');
+  });
+
+  // ---------- polaroid preview ----------
+  const preview = document.getElementById('preview');
+  let showTimer, hideTimer, current;
+  document.addEventListener('pointerover', (e) => {
+    const el = e.target.closest('[data-link]');
+    if (!el || el === current) return;
+    current = el;
+    clearTimeout(hideTimer);
+    clearTimeout(showTimer);
+    showTimer = setTimeout(() => showPreview(el), preview.classList.contains('show') ? 0 : 500);
+  });
+  document.addEventListener('pointerout', (e) => {
+    const el = e.target.closest('[data-link]');
+    if (!el || el.contains(e.relatedTarget)) return;
+    current = null;
+    clearTimeout(showTimer);
+    hideTimer = setTimeout(() => preview.classList.remove('show'), 140);
+  });
+  function showPreview(el) {
+    const link = links[el.dataset.link];
+    preview.style.setProperty('--c', link.color);
+    preview.innerHTML = `<i class="tape"></i>${skeleton(link, 'light')}
+      <h3>${esc(link.title)}</h3><p>${esc(link.desc)}</p>
+      <div class="chips"><span class="h">${host(link.url)}</span>${(Array.isArray(link.path) ? link.path : [link.path]).map((p) => `<span>${esc(p)}</span>`).join('')}<span>${visited(link.url).replace('Visited ', '')}</span></div>`;
+    const anchor = (el.closest('.card') || el).getBoundingClientRect();
+    const row = el.getBoundingClientRect();
+    const w = 280, h = preview.offsetHeight || 300;
+    const isTile = !el.closest('.card');
+    const right = anchor.right + 20 + w < innerWidth;
+    const left = isTile ? row.left + row.width / 2 - w / 2 : right ? anchor.right + 20 : anchor.left - 20 - w;
+    const top = Math.max(12, Math.min(innerHeight - h - 12, isTile ? row.bottom + 22 : row.top + row.height / 2 - h / 2));
+    preview.style.setProperty('--ox', isTile ? 'top' : right ? 'left' : 'right');
+    preview.style.left = left + 'px';
+    preview.style.top = top + 'px';
+    preview.classList.add('show');
+  }
+
+  // ---------- dot field ----------
+  const canvas = document.getElementById('bg');
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const GAP = 26, R = 170;
+  let W, H, cols, rows;
+  const mouse = { x: -9999, y: -9999, tx: -9999, ty: -9999 };
+  function resize() {
+    W = innerWidth; H = innerHeight;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cols = Math.ceil(W / GAP) + 1; rows = Math.ceil(H / GAP) + 1;
+  }
+  resize();
+  addEventListener('resize', resize);
+  addEventListener('pointermove', (e) => { mouse.tx = e.clientX; mouse.ty = e.clientY; if (mouse.x < -999) { mouse.x = e.clientX; mouse.y = e.clientY; } });
+  document.addEventListener('pointerleave', () => { mouse.tx = mouse.ty = mouse.x = mouse.y = -9999; });
+  const ripples = [];
+  addEventListener('pointerdown', (e) => ripples.push({ x: e.clientX, y: e.clientY, r: 0 }));
+
+  function draw(t, dt) {
+    ctx.clearRect(0, 0, W, H);
+    if (mouse.tx > -999) { mouse.x += (mouse.tx - mouse.x) * 0.18; mouse.y += (mouse.ty - mouse.y) * 0.18; }
+    for (const rp of ripples) rp.r += dt * 0.7;
+    while (ripples.length && ripples[0].r > Math.hypot(W, H)) ripples.shift();
+
+    // Resting dots go in one batched path; only the excited ones get their own fill.
+    ctx.fillStyle = 'rgba(31,28,23,0.16)';
+    ctx.beginPath();
+    const hot = [];
+    for (let j = 0; j < rows; j++) {
+      for (let i = 0; i < cols; i++) {
+        let x = i * GAP, y = j * GAP;
+        // Slow diagonal swell so the page breathes even when you're not touching it.
+        const wave = Math.sin(x * 0.012 + y * 0.009 - t * 0.0011) * 0.5 + 0.5;
+        let r = 0.9 + wave * 0.6, heat = 0;
+        const dx = x - mouse.x, dy = y - mouse.y, d = Math.hypot(dx, dy);
+        if (d < R) {
+          const k = 1 - d / R, e = k * k * (3 - 2 * k);
+          x += (dx / (d || 1)) * e * 16; // lens: push outward
+          y += (dy / (d || 1)) * e * 16;
+          r += e * 3.4;
+          heat = e;
+        }
+        for (const rp of ripples) {
+          const off = Math.abs(Math.hypot(i * GAP - rp.x, j * GAP - rp.y) - rp.r);
+          if (off < 40) { const e = (1 - off / 40) * Math.max(0, 1 - rp.r / 900); r += e * 2.6; heat = Math.max(heat, e); }
+        }
+        if (heat > 0.02) hot.push(x, y, r, heat);
+        else { ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, 6.283); }
+      }
+    }
+    ctx.fill();
+    for (let k = 0; k < hot.length; k += 4) {
+      const heat = hot[k + 3];
+      // Ink → accent as the dot warms up.
+      ctx.fillStyle = `rgba(${31 + 224 * heat},${28 + 63 * heat},${23 + 35 * heat},${0.16 + heat * 0.7})`;
+      ctx.beginPath(); ctx.arc(hot[k], hot[k + 1], hot[k + 2], 0, 6.283); ctx.fill();
+    }
+  }
+  if (reduced) draw(0, 0); else FH.loop(draw);
+</script>
+</body>
+</html>

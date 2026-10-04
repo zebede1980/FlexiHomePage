@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FlexiHome · Aurora</title>
+<style>
+  @property --pc {
+    syntax: '<color>';
+    initial-value: #8b7bff;
+    inherits: false;
+  }
+  @property --angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+  }
+  :root {
+    --accent: #8b7bff;
+    --accent-2: #3dd6f5;
+    --accent-3: #f472d0;
+    --font: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+    --display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+    --text: #eef0ff;
+    --muted: rgba(228, 231, 255, 0.64);
+    --faint: rgba(228, 231, 255, 0.4);
+    --glass: rgba(16, 14, 36, 0.42);
+    --glass-strong: rgba(22, 20, 46, 0.78);
+    --border: rgba(255, 255, 255, 0.08);
+    --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+    --card-w: 280px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  html { background: #070618; }
+  body { color: var(--text); font: 14px/1.4 var(--font); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  a { color: inherit; text-decoration: none; }
+
+  /* ---------- background ---------- */
+  #bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -3; }
+  /* Film grain hides gradient banding and makes the glow feel physical. */
+  .grain {
+    position: fixed; inset: -100px; z-index: -2; pointer-events: none; opacity: 0.08; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    animation: grain 0.9s steps(3) infinite;
+  }
+  @keyframes grain { 33% { translate: -40px 30px; } 66% { translate: 30px -50px; } }
+  .vignette { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(4, 3, 14, 0.7)); }
+
+  main { width: min(1440px, 100%); margin: 0 auto; padding: clamp(48px, 10vh, 120px) clamp(16px, 4vw, 48px) 80px; display: grid; gap: 34px; }
+
+  /* ---------- clock ---------- */
+  .hero { display: grid; justify-items: center; gap: 28px; }
+  .clock { display: grid; justify-items: center; gap: 2px; }
+  .time {
+    font: 200 clamp(68px, 9vw, 116px) / 1 var(--display); letter-spacing: -0.04em; font-variant-numeric: tabular-nums;
+    background: linear-gradient(100deg, #fff 20%, #c9c1ff 40%, #9fe9ff 50%, #fff 60%, #fff) 0 0 / 300% 100%;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: shimmer 9s linear infinite, fade-up 0.9s var(--ease) both;
+    filter: drop-shadow(0 4px 30px rgba(139, 123, 255, 0.35));
+  }
+  @keyframes shimmer { to { background-position: -300% 0; } }
+  .sub { margin: 0; font-size: 15px; color: var(--muted); letter-spacing: 0.01em; animation: fade-up 0.9s 0.1s var(--ease) both; }
+  .sub b { color: var(--text); font-weight: 500; }
+  @keyframes fade-up { from { opacity: 0; translate: 0 12px; filter: blur(6px); } }
+
+  /* ---------- search ---------- */
+  .search { position: relative; width: min(620px, 100%); animation: fade-up 0.9s 0.2s var(--ease) both; }
+  .bar {
+    position: relative; display: flex; align-items: center; gap: 12px; height: 54px; padding: 0 12px 0 20px;
+    border-radius: 999px; background: var(--glass-strong); backdrop-filter: blur(20px) saturate(1.6);
+    color: var(--faint); transition: box-shadow 0.3s;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+  /* Rotating conic border that only shows on focus. */
+  .bar::before {
+    content: ''; position: absolute; inset: -1.5px; border-radius: inherit; padding: 1.5px; pointer-events: none;
+    background: conic-gradient(from var(--angle), var(--accent), var(--accent-2), var(--accent-3), var(--accent));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+    opacity: 0.25; transition: opacity 0.3s; animation: spin 4s linear infinite;
+  }
+  .bar:focus-within::before { opacity: 1; }
+  .bar:focus-within { box-shadow: 0 10px 50px rgba(139, 123, 255, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06); }
+  @keyframes spin { to { --angle: 360deg; } }
+  .bar input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; color: var(--text); font: 16px var(--font); }
+  .bar input::placeholder { color: var(--faint); }
+  kbd { display: inline-grid; place-items: center; min-width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--border); color: var(--faint); font: 600 12px var(--font); }
+
+  /* ---------- pinned ---------- */
+  .pinned { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+  .tile { display: grid; justify-items: center; gap: 10px; width: 96px; padding: 10px 0; animation: pop 0.6s var(--spring) both; animation-delay: calc(0.3s + var(--i) * 0.05s); }
+  @keyframes pop { from { opacity: 0; scale: 0.6; } }
+  .tile .icon {
+    position: relative; display: grid; place-items: center; width: 62px; height: 62px; border-radius: 20px;
+    background: linear-gradient(160deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.03)); backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    transition: translate 0.5s var(--spring), box-shadow 0.3s, border-color 0.3s;
+  }
+  .tile .icon::after { /* brand-coloured glow that blooms on hover */
+    content: ''; position: absolute; inset: 8px; z-index: -1; border-radius: inherit; background: var(--c);
+    filter: blur(18px); opacity: 0; transition: opacity 0.35s, inset 0.35s;
+  }
+  .tile:hover .icon { border-color: color-mix(in oklab, var(--c) 60%, white 10%); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45); transition: translate 0.12s linear, box-shadow 0.3s, border-color 0.3s; }
+  .tile:hover .icon::after { opacity: 0.85; inset: -4px; }
+  .tile img { width: 30px; height: 30px; transition: scale 0.4s var(--spring); }
+  .tile:hover img { scale: 1.12; }
+  .tile span { font-size: 12.5px; color: var(--muted); transition: color 0.2s; }
+  .tile:hover span { color: var(--text); }
+
+  /* ---------- cards ---------- */
+  .grid { display: flex; gap: 18px; align-items: flex-start; }
+  .column { flex: 1; min-width: 0; display: grid; gap: 18px; }
+  .card {
+    position: relative; border-radius: 22px; padding: 8px; isolation: isolate;
+    background: var(--glass); backdrop-filter: blur(18px) saturate(1.5);
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 20px 50px rgba(0, 0, 0, 0.3);
+    animation: card-in 0.8s var(--ease) both; animation-delay: calc(0.35s + var(--i) * 0.07s);
+  }
+  @keyframes card-in { from { opacity: 0; translate: 0 24px; filter: blur(10px); } }
+  /* Border + inner sheen follow the pointer, even from a neighbouring card. */
+  .card::before, .card::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
+  .card::before {
+    padding: 1px; z-index: 1;
+    background:
+      radial-gradient(340px circle at var(--mx, -999px) var(--my, -999px), rgba(196, 184, 255, 0.85), rgba(61, 214, 245, 0.35) 35%, transparent 60%),
+      linear-gradient(rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.07));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  }
+  .card::after { z-index: -1; background: radial-gradient(500px circle at var(--mx, -999px) var(--my, -999px), rgba(139, 123, 255, 0.12), transparent 45%); }
+
+  .card header { display: flex; align-items: center; gap: 10px; padding: 8px 10px 10px; }
+  .card h2 { margin: 0; flex: 1; font: 600 15px/1.2 var(--display); letter-spacing: 0.01em; }
+  .card .count { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; color: #d9d3ff; background: rgba(139, 123, 255, 0.18); border: 1px solid rgba(139, 123, 255, 0.25); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fc); box-shadow: 0 0 12px var(--fc); }
+
+  .list { position: relative; display: grid; }
+  /* One highlight per list that glides between rows and takes on each site's colour. */
+  .pill {
+    position: absolute; left: 0; right: 0; top: 0; height: 36px; border-radius: 12px; pointer-events: none; opacity: 0;
+    background: linear-gradient(90deg, color-mix(in oklab, var(--pc, var(--accent)) 30%, transparent), color-mix(in oklab, var(--pc, var(--accent)) 8%, transparent));
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--pc, var(--accent)) 35%, transparent);
+    transition: translate 0.35s var(--spring), height 0.3s var(--ease), opacity 0.25s, --pc 0.3s;
+  }
+  .list:has(> .row:hover) > .pill { opacity: 1; }
+  .row { position: relative; display: flex; align-items: center; gap: 11px; height: 36px; padding: 0 10px; border-radius: 12px; color: rgba(238, 240, 255, 0.86); transition: color 0.2s; }
+  .row:hover { color: #fff; }
+  .row img { width: 16px; height: 16px; border-radius: 4px; transition: scale 0.35s var(--spring), rotate 0.35s var(--spring); }
+  .row:hover img { scale: 1.25; rotate: -8deg; }
+  .row .label { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; transition: translate 0.3s var(--spring); }
+  .row:hover .label { translate: 3px 0; }
+  .row .go { opacity: 0; translate: -6px 0; color: var(--faint); transition: opacity 0.2s, translate 0.3s var(--spring); }
+  .row:hover .go { opacity: 1; translate: 0 0; }
+  .folder { cursor: pointer; border: 0; background: none; width: 100%; font: inherit; text-align: left; }
+  .folder .chev { width: 16px; color: var(--faint); transition: rotate 0.35s var(--spring); }
+  .folder.open .chev { rotate: 90deg; }
+  .folder .fcount { font-size: 11px; color: var(--faint); }
+  .nested { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.45s var(--ease); }
+  .nested.open { grid-template-rows: 1fr; }
+  .nested > div { overflow: hidden; margin-left: 18px; padding-left: 6px; border-left: 1px solid rgba(255, 255, 255, 0.1); }
+
+  /* ---------- hover preview ---------- */
+  .preview {
+    position: fixed; z-index: 50; width: 300px; padding: 10px; border-radius: 20px; pointer-events: none;
+    background: rgba(20, 18, 44, 0.82); backdrop-filter: blur(24px) saturate(1.6);
+    border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.2);
+    opacity: 0; scale: 0.94; filter: blur(6px); transform-origin: var(--ox, left) center;
+    transition: opacity 0.25s, scale 0.35s var(--spring), filter 0.25s, top 0.35s var(--spring), left 0.35s var(--spring);
+  }
+  .preview.show { opacity: 1; scale: 1; filter: none; }
+  .preview .meta { padding: 10px 6px 4px; display: grid; gap: 4px; }
+  .preview h3 { margin: 0; font: 600 15px var(--display); }
+  .preview p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+  .preview .foot { display: flex; justify-content: space-between; margin-top: 6px; font-size: 11.5px; color: var(--faint); }
+  .preview .host { color: color-mix(in oklab, var(--c) 55%, white); font-weight: 600; }
+
+  .skel { --c: #888; height: 132px; border-radius: 13px; overflow: hidden; position: relative;
+    background: radial-gradient(120% 120% at 0% 0%, color-mix(in oklab, var(--c) 70%, white 10%), color-mix(in oklab, var(--c) 35%, #0b0a1e)); }
+  .skel-bar { display: flex; gap: 5px; align-items: center; padding: 8px 10px; background: rgba(0, 0, 0, 0.2); }
+  .skel-bar i { width: 7px; height: 7px; border-radius: 50%; background: rgba(255, 255, 255, 0.45); }
+  .skel-bar span { flex: 1; height: 8px; margin-left: 10px; border-radius: 4px; background: rgba(255, 255, 255, 0.18); }
+  .skel-body { display: flex; gap: 12px; align-items: center; padding: 12px 14px 8px; }
+  .skel-body img { padding: 6px; border-radius: 12px; background: rgba(255, 255, 255, 0.9); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25); }
+  .skel-lines { flex: 1; display: grid; gap: 6px; }
+  .skel-lines b { display: block; height: 7px; border-radius: 4px; }
+  .skel-tiles { display: flex; gap: 6px; padding: 4px 14px; }
+  .skel-tiles u { flex: 1; height: 26px; border-radius: 6px; background: rgba(255, 255, 255, 0.14); }
+
+  .toolbar { position: fixed; top: 14px; right: 16px; display: flex; gap: 8px; z-index: 10; }
+  .tb { height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--border); background: var(--glass); backdrop-filter: blur(16px); color: var(--muted); font: 500 13px var(--font); }
+  .back { position: fixed; top: 14px; left: 16px; z-index: 10; }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition-duration: 0.01ms !important; } }
+</style>
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+<div class="grain" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+<a class="tb back" href="./">← Prototypes</a>
+<div class="toolbar"><button class="tb">＋ New folder</button><button class="tb">Settings</button></div>
+
+<main>
+  <header class="hero">
+    <div class="clock"><time class="time" id="time"></time><p class="sub" id="sub"></p></div>
+    <div class="search">
+      <label class="bar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input placeholder="Search bookmarks or the web" autocomplete="off" spellcheck="false" />
+        <kbd>/</kbd>
+      </label>
+    </div>
+  </header>
+  <nav class="pinned" id="pinned"></nav>
+  <div class="grid" id="grid"></div>
+</main>
+<div class="preview" id="preview" aria-hidden="true"></div>
+
+<script src="data.js"></script>
+<script>
+  const { pinned, cards, favicon, host, esc, isFolder, count, visited, visits, skeleton, reduced, hash } = FH;
+
+  // ---------- clock ----------
+  FH.tick((now) => {
+    document.getElementById('time').textContent = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('sub').innerHTML = `<b>${FH.greeting()}</b> · ${now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}`;
+  });
+  addEventListener('keydown', (e) => { if (e.key === '/' && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); document.querySelector('input').focus(); } });
+
+  // ---------- render ----------
+  document.getElementById('pinned').innerHTML = pinned.map((p, i) => `
+    <a class="tile" href="${p.url}" data-link="p${i}" style="--c:${p.color};--i:${i}">
+      <span class="icon"><img src="${favicon(p.url, 64)}" alt=""></span><span>${esc(p.title)}</span>
+    </a>`).join('');
+
+  const links = {};
+  pinned.forEach((p, i) => (links['p' + i] = { ...p, path: 'Bookmarks' }));
+  let seq = 0;
+  function list(items, path) {
+    return items.map((it) => {
+      if (isFolder(it)) {
+        return `<button class="row folder" data-pc="#8b7bff">
+            <svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m9 6 6 6-6 6"/></svg>
+            <span class="label">${esc(it.title)}</span><span class="fcount">${count(it.items)}</span>
+          </button>
+          <div class="nested"><div><div class="list"><span class="pill"></span>${list(it.items, path + ' › ' + it.title)}</div></div></div>`;
+      }
+      const id = 'l' + seq++;
+      links[id] = { ...it, path };
+      return `<a class="row" href="${it.url}" data-link="${id}" data-pc="${it.color}">
+          <img src="${favicon(it.url)}" alt=""><span class="label">${esc(it.title)}</span>
+          <svg class="go" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17 17 7M8 7h9v9"/></svg>
+        </a>`;
+    }).join('');
+  }
+
+  const grid = document.getElementById('grid');
+  function layout() {
+    const cols = Math.max(1, Math.floor((grid.clientWidth + 18) / (280 + 18)));
+    const columns = Array.from({ length: cols }, () => []);
+    cards.forEach((c, i) => {
+      const hue = hash(c.title) % 360;
+      columns[i % cols].push(`
+        <section class="card" style="--i:${i};--fc:oklch(0.75 0.15 ${hue})">
+          <header><span class="dot"></span><h2>${esc(c.title)}</h2><span class="count">${count(c.items)}</span></header>
+          <div class="list"><span class="pill"></span>${list(c.items, 'Bookmarks › ' + c.title)}</div>
+        </section>`);
+    });
+    seq = 0;
+    grid.innerHTML = columns.map((c) => `<div class="column">${c.join('')}</div>`).join('');
+  }
+  layout();
+  addEventListener('resize', () => { clearTimeout(layout.t); layout.t = setTimeout(layout, 150); });
+
+  // ---------- gliding highlight pill ----------
+  grid.addEventListener('pointerover', (e) => {
+    const row = e.target.closest('.row');
+    if (!row) return;
+    const pill = row.parentElement.querySelector(':scope > .pill');
+    if (!pill) return;
+    pill.style.translate = `0 ${row.offsetTop}px`;
+    pill.style.height = row.offsetHeight + 'px';
+    pill.style.setProperty('--pc', row.dataset.pc);
+  });
+  grid.addEventListener('click', (e) => {
+    const f = e.target.closest('.folder');
+    if (!f) return;
+    f.classList.toggle('open');
+    f.nextElementSibling.classList.toggle('open');
+  });
+
+  // ---------- pointer: card spotlight + magnetic tiles ----------
+  const pointer = { x: innerWidth / 2, y: innerHeight * 0.3, vx: 0, vy: 0, active: false };
+  let pending = false;
+  addEventListener('pointermove', (e) => {
+    pointer.vx = e.clientX - pointer.x;
+    pointer.vy = e.clientY - pointer.y;
+    pointer.x = e.clientX;
+    pointer.y = e.clientY;
+    pointer.active = true;
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => {
+      pending = false;
+      for (const card of document.querySelectorAll('.card')) {
+        const r = card.getBoundingClientRect();
+        card.style.setProperty('--mx', pointer.x - r.left + 'px');
+        card.style.setProperty('--my', pointer.y - r.top + 'px');
+      }
+    });
+  });
+  document.getElementById('pinned').addEventListener('pointermove', (e) => {
+    const tile = e.target.closest('.tile');
+    if (!tile) return;
+    const icon = tile.querySelector('.icon');
+    const r = icon.getBoundingClientRect();
+    icon.style.translate = `${(e.clientX - r.left - r.width / 2) * 0.28}px ${(e.clientY - r.top - r.height / 2) * 0.28 - 4}px`;
+  });
+  document.getElementById('pinned').addEventListener('pointerout', (e) => {
+    const tile = e.target.closest('.tile');
+    if (tile && !tile.contains(e.relatedTarget)) tile.querySelector('.icon').style.translate = '';
+  });
+
+  // ---------- hover preview ----------
+  const preview = document.getElementById('preview');
+  let showTimer, hideTimer, current;
+  document.addEventListener('pointerover', (e) => {
+    const el = e.target.closest('[data-link]');
+    if (!el || el === current) return;
+    current = el;
+    clearTimeout(hideTimer);
+    clearTimeout(showTimer);
+    // Already open: glide straight to the new link. Otherwise wait for intent.
+    showTimer = setTimeout(() => showPreview(el), preview.classList.contains('show') ? 0 : 450);
+  });
+  document.addEventListener('pointerout', (e) => {
+    const el = e.target.closest('[data-link]');
+    if (!el || el.contains(e.relatedTarget)) return;
+    current = null;
+    clearTimeout(showTimer);
+    hideTimer = setTimeout(() => preview.classList.remove('show'), 140);
+  });
+  function showPreview(el) {
+    const link = links[el.dataset.link];
+    preview.style.setProperty('--c', link.color);
+    preview.innerHTML = `${skeleton(link)}
+      <div class="meta">
+        <h3>${esc(link.title)}</h3>
+        <p>${esc(link.desc)}</p>
+        <div class="foot"><span class="host">${host(link.url)}</span><span>${visited(link.url)} · ${visits(link.url)} visits</span></div>
+      </div>`;
+    const r = (el.closest('.card') || el).getBoundingClientRect();
+    const row = el.getBoundingClientRect();
+    const w = 300, h = preview.offsetHeight || 250;
+    const right = r.right + 14 + w < innerWidth;
+    let left = el.classList.contains('tile') ? row.left + row.width / 2 - w / 2 : right ? r.right + 14 : r.left - 14 - w;
+    let top = el.classList.contains('tile') ? row.bottom + 8 : row.top + row.height / 2 - h / 2;
+    top = Math.max(12, Math.min(innerHeight - h - 12, top));
+    preview.style.setProperty('--ox', el.classList.contains('tile') ? 'top' : right ? 'left' : 'right');
+    preview.style.left = left + 'px';
+    preview.style.top = top + 'px';
+    preview.classList.add('show');
+  }
+
+  // ---------- aurora background ----------
+  // Drawn at 1/6 resolution: it's all soft gradients, so the browser's upscale
+  // is free blur and the canvas costs next to nothing per frame.
+  const canvas = document.getElementById('bg');
+  const ctx = canvas.getContext('2d');
+  const SCALE = 1 / 6;
+  function resize() { canvas.width = Math.ceil(innerWidth * SCALE); canvas.height = Math.ceil(innerHeight * SCALE); }
+  resize();
+  addEventListener('resize', resize);
+
+  const blobs = [
+    { x: 0.15, y: 0.15, r: 0.55, c: [124, 108, 255], sp: 0.00011, ph: 0, pull: 0.12 },
+    { x: 0.85, y: 0.12, r: 0.45, c: [40, 190, 240], sp: 0.00014, ph: 2, pull: 0.08 },
+    { x: 0.6, y: 0.95, r: 0.6, c: [220, 70, 200], sp: 0.00009, ph: 4, pull: 0.1 },
+    { x: 0.1, y: 0.85, r: 0.4, c: [60, 90, 255], sp: 0.00013, ph: 1, pull: 0.14 },
+    { x: 0.5, y: 0.45, r: 0.35, c: [90, 40, 200], sp: 0.00017, ph: 3, pull: 0.2 },
+  ].map((b) => ({ ...b, cx: b.x, cy: b.y }));
+  const glow = { x: 0.5, y: 0.3, energy: 0 };
+  const ripples = [];
+  addEventListener('pointerdown', (e) => ripples.push({ x: e.clientX / innerWidth, y: e.clientY / innerHeight, t: 0 }));
+
+  function draw(t, dt) {
+    const W = canvas.width, H = canvas.height, M = Math.max(W, H);
+    const px = pointer.x / innerWidth, py = pointer.y / innerHeight;
+    const speed = Math.hypot(pointer.vx, pointer.vy);
+    pointer.vx *= 0.9; pointer.vy *= 0.9;
+    glow.energy += (Math.min(1, speed / 40) - glow.energy) * 0.05;
+    glow.x += (px - glow.x) * 0.06;
+    glow.y += (py - glow.y) * 0.06;
+
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#070618';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'lighter';
+
+    const blob = (x, y, r, [R, G, B], a) => {
+      const g = ctx.createRadialGradient(x * W, y * H, 0, x * W, y * H, r * M);
+      g.addColorStop(0, `rgba(${R},${G},${B},${a})`);
+      g.addColorStop(1, `rgba(${R},${G},${B},0)`);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+    };
+
+    for (const b of blobs) {
+      // Lissajous drift, then lean toward the pointer.
+      const tx = b.x + Math.sin(t * b.sp * 7 + b.ph) * 0.12 + (pointer.active ? (glow.x - b.x) * b.pull : 0);
+      const ty = b.y + Math.cos(t * b.sp * 5 + b.ph * 1.3) * 0.1 + (pointer.active ? (glow.y - b.y) * b.pull : 0);
+      b.cx += (tx - b.cx) * 0.03;
+      b.cy += (ty - b.cy) * 0.03;
+      blob(b.cx, b.cy, b.r * (1 + Math.sin(t * 0.0004 + b.ph) * 0.08), b.c, 0.42);
+    }
+    if (pointer.active) blob(glow.x, glow.y, 0.2 + glow.energy * 0.08, [170, 150, 255], 0.22 + glow.energy * 0.25);
+
+    for (let i = ripples.length - 1; i >= 0; i--) {
+      const rp = ripples[i];
+      rp.t += dt / 1400;
+      if (rp.t >= 1) { ripples.splice(i, 1); continue; }
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = `rgba(190,180,255,${(1 - rp.t) * 0.7})`;
+      ctx.beginPath();
+      ctx.arc(rp.x * W, rp.y * H, rp.t * M * 0.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+  if (reduced) draw(0, 0); else FH.loop(draw);
+</script>
+</body>
+</html>

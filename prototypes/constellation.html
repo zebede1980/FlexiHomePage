@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FlexiHome · Constellation</title>
+<style>
+  :root {
+    --cyan: #5eead4;
+    --cyan-dim: rgba(94, 234, 212, 0.14);
+    --pink: #ff4fd8;
+    --font: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+    --display: 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+    --mono: 'Cascadia Code', 'Cascadia Mono', Consolas, ui-monospace, monospace;
+    --text: #e6f1ff;
+    --muted: rgba(200, 220, 245, 0.62);
+    --faint: rgba(200, 220, 245, 0.36);
+    --panel: rgba(8, 13, 28, 0.74);
+    --line: rgba(94, 234, 212, 0.16);
+    --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
+  html { background: #040814; }
+  body { color: var(--text); font: 14px/1.4 var(--font); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+  a { color: inherit; text-decoration: none; }
+  #bg { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -2; }
+  .haze { position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background: radial-gradient(60% 50% at 50% 0%, rgba(94, 234, 212, 0.09), transparent 70%), radial-gradient(50% 40% at 90% 100%, rgba(255, 79, 216, 0.08), transparent 70%); }
+
+  main { width: min(1440px, 100%); margin: 0 auto; padding: clamp(48px, 10vh, 120px) clamp(16px, 4vw, 48px) 80px; display: grid; gap: 34px; }
+
+  /* ---------- clock ---------- */
+  .hero { display: grid; justify-items: center; gap: 26px; }
+  .clock { display: grid; justify-items: center; gap: 10px; }
+  .time { font: 250 clamp(64px, 8.5vw, 108px) / 1 var(--display); letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+    text-shadow: 0 0 30px rgba(94, 234, 212, 0.45), 0 0 80px rgba(94, 234, 212, 0.18); animation: boot 1s var(--ease) both; }
+  .time .colon { color: var(--cyan); animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0.25; } }
+  @keyframes boot { 0% { opacity: 0; letter-spacing: 0.3em; filter: blur(8px); } }
+  .sub { margin: 0; font: 500 12px/1 var(--mono); letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
+  .sub em { font-style: normal; color: var(--cyan); }
+
+  /* ---------- search ---------- */
+  .search { width: min(620px, 100%); }
+  .bar { position: relative; display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 14px 0 18px;
+    border-radius: 14px; background: var(--panel); backdrop-filter: blur(14px); border: 1px solid var(--line);
+    transition: border-color 0.25s, box-shadow 0.25s; }
+  .bar:focus-within { border-color: rgba(94, 234, 212, 0.6); box-shadow: 0 0 0 4px rgba(94, 234, 212, 0.08), 0 0 40px rgba(94, 234, 212, 0.18); }
+  .prompt { font: 600 16px var(--mono); color: var(--cyan); }
+  .bar input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; color: var(--text); font: 15px var(--mono); caret-color: var(--cyan); }
+  .bar input::placeholder { color: var(--faint); }
+  kbd { font: 600 11px var(--mono); color: var(--faint); border: 1px solid var(--line); border-radius: 6px; padding: 4px 7px; }
+
+  /* ---------- pinned: orbit tiles ---------- */
+  .pinned { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
+  .tile { display: grid; justify-items: center; gap: 10px; width: 92px; padding: 8px 0; animation: boot-in 0.6s var(--ease) both; animation-delay: calc(0.25s + var(--i) * 0.06s); }
+  @keyframes boot-in { from { opacity: 0; translate: 0 10px; } }
+  .orb { position: relative; display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.12), rgba(8, 13, 28, 0.9) 70%); border: 1px solid var(--line);
+    transition: border-color 0.3s, box-shadow 0.3s, scale 0.4s var(--spring); }
+  .orb::before { /* dashed orbit ring */
+    content: ''; position: absolute; inset: -7px; border-radius: 50%; border: 1px dashed var(--c);
+    opacity: 0; scale: 0.8; transition: opacity 0.3s, scale 0.5s var(--spring); animation: orbit 6s linear infinite; }
+  .orb::after { /* satellite */
+    content: ''; position: absolute; width: 6px; height: 6px; border-radius: 50%; background: var(--c); box-shadow: 0 0 10px var(--c);
+    offset-path: circle(37px at 50% 50%); offset-distance: 0%; opacity: 0; transition: opacity 0.3s; animation: sat 2.4s linear infinite; }
+  @keyframes orbit { to { rotate: 360deg; } }
+  @keyframes sat { to { offset-distance: 100%; } }
+  .tile:hover .orb { border-color: var(--c); box-shadow: 0 0 24px color-mix(in oklab, var(--c) 50%, transparent), inset 0 0 18px color-mix(in oklab, var(--c) 30%, transparent); scale: 1.06; }
+  .tile:hover .orb::before { opacity: 0.7; scale: 1; }
+  .tile:hover .orb::after { opacity: 1; }
+  .orb img { width: 28px; height: 28px; }
+  .tile span { font: 500 11px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); transition: color 0.2s; }
+  .tile:hover span { color: var(--text); }
+
+  /* ---------- cards: HUD panels with 3D tilt ---------- */
+  .grid { display: flex; gap: 20px; align-items: flex-start; }
+  .column { flex: 1; min-width: 0; display: grid; gap: 20px; }
+  .card { position: relative; padding: 6px 6px 8px; border-radius: 6px; background: var(--panel); backdrop-filter: blur(12px);
+    border: 1px solid var(--line); transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+    transition: transform 0.6s var(--ease), border-color 0.3s, box-shadow 0.3s;
+    animation: panel-in 0.7s var(--ease) backwards; animation-delay: calc(0.35s + var(--i) * 0.08s); }
+  .card.tilting { transition: transform 0.12s linear, border-color 0.3s, box-shadow 0.3s; }
+  @keyframes panel-in { from { opacity: 0; clip-path: inset(0 0 100% 0); } to { clip-path: inset(-10px); } }
+  .card:hover { border-color: rgba(94, 234, 212, 0.35); box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(94, 234, 212, 0.07); }
+  /* Corner brackets that snap outward on hover. */
+  .card .corner { position: absolute; width: 14px; height: 14px; border: 2px solid var(--cyan); opacity: 0.55; transition: inset 0.4s var(--spring), opacity 0.3s; pointer-events: none; }
+  .card .tl { top: -1px; left: -1px; border-right: 0; border-bottom: 0; }
+  .card .tr { top: -1px; right: -1px; border-left: 0; border-bottom: 0; }
+  .card .bl { bottom: -1px; left: -1px; border-right: 0; border-top: 0; }
+  .card .br { bottom: -1px; right: -1px; border-left: 0; border-top: 0; }
+  .card:hover .corner { opacity: 1; }
+  .card:hover .tl { top: -6px; left: -6px; } .card:hover .tr { top: -6px; right: -6px; }
+  .card:hover .bl { bottom: -6px; left: -6px; } .card:hover .br { bottom: -6px; right: -6px; }
+  .glare { position: absolute; inset: 0; pointer-events: none; border-radius: inherit; opacity: 0; transition: opacity 0.3s;
+    background: radial-gradient(400px circle at var(--gx, 50%) var(--gy, 0%), rgba(94, 234, 212, 0.1), transparent 50%); }
+  .card:hover .glare { opacity: 1; }
+
+  .card header { display: flex; align-items: baseline; gap: 10px; padding: 10px 10px 12px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+  .card h2 { margin: 0; flex: 1; font: 600 12.5px/1 var(--mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--cyan); }
+  .card .count { font: 500 11px var(--mono); color: var(--faint); }
+  .card .idx { font: 500 10px var(--mono); color: var(--faint); }
+
+  .list { display: grid; }
+  .row { position: relative; display: flex; align-items: center; gap: 11px; height: 34px; padding: 0 10px 0 12px; overflow: hidden; color: rgba(230, 241, 255, 0.84); }
+  .row::before { /* accent rail */
+    content: ''; position: absolute; left: 0; top: 7px; bottom: 7px; width: 2px; background: var(--c, var(--cyan)); box-shadow: 0 0 10px var(--c, var(--cyan));
+    scale: 1 0; transition: scale 0.25s var(--ease); }
+  .row::after { /* scan sweep */
+    content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--c, var(--cyan)) 18%, transparent), transparent);
+    translate: -100% 0; pointer-events: none; }
+  .row:hover { color: #fff; background: linear-gradient(90deg, color-mix(in oklab, var(--c, var(--cyan)) 12%, transparent), transparent 80%); }
+  .row:hover::before { scale: 1 1; }
+  .row:hover::after { animation: sweep 0.6s var(--ease); }
+  @keyframes sweep { to { translate: 100% 0; } }
+  .row img { width: 16px; height: 16px; border-radius: 3px; transition: filter 0.3s, scale 0.3s var(--spring); }
+  .row:hover img { scale: 1.15; filter: drop-shadow(0 0 6px var(--c)); }
+  .row .label { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; transition: translate 0.3s var(--ease); }
+  .row:hover .label { translate: 4px 0; }
+  .row .host { font: 11px var(--mono); color: var(--faint); max-width: 0; overflow: hidden; white-space: nowrap; opacity: 0; transition: max-width 0.4s var(--ease), opacity 0.3s; }
+  .row:hover .host { max-width: 120px; opacity: 1; }
+  .folder { width: 100%; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; }
+  .folder .chev { font: 600 12px var(--mono); color: var(--cyan); width: 16px; transition: rotate 0.3s var(--spring); }
+  .folder.open .chev { rotate: 90deg; }
+  .folder .label { font-weight: 600; }
+  .nested { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.4s var(--ease); }
+  .nested.open { grid-template-rows: 1fr; }
+  .nested > div { overflow: hidden; margin-left: 19px; border-left: 1px dashed var(--line); }
+
+  /* ---------- HUD preview ---------- */
+  .preview { position: fixed; z-index: 50; width: 310px; padding: 12px; pointer-events: none; border-radius: 6px;
+    background: rgba(6, 11, 24, 0.92); border: 1px solid color-mix(in oklab, var(--c) 50%, transparent);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 0 50px color-mix(in oklab, var(--c) 25%, transparent), 0 30px 70px rgba(0, 0, 0, 0.6);
+    clip-path: inset(0 0 100% 0); opacity: 0; transition: clip-path 0.35s var(--ease), opacity 0.2s, top 0.3s var(--ease), left 0.3s var(--ease); }
+  .preview.show { clip-path: inset(-100px); opacity: 1; }
+  .preview .scan { position: absolute; left: 0; right: 0; height: 40%; top: 0; pointer-events: none;
+    background: linear-gradient(180deg, transparent, color-mix(in oklab, var(--c) 18%, transparent), transparent); animation: scan 2.5s linear infinite; }
+  @keyframes scan { from { translate: 0 -100%; } to { translate: 0 260%; } }
+  .preview .head { display: flex; justify-content: space-between; font: 600 10px var(--mono); letter-spacing: 0.2em; color: var(--c); margin-bottom: 8px; }
+  .preview h3 { margin: 10px 0 4px; font: 600 15px var(--display); }
+  .preview p { margin: 0 0 10px; min-height: 36px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+  .preview dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; padding-top: 8px; border-top: 1px dashed var(--line); font: 11px var(--mono); }
+  .preview dt { color: var(--faint); letter-spacing: 0.12em; }
+  .preview dd { margin: 0; color: var(--text); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .caret { display: inline-block; width: 7px; height: 13px; vertical-align: -2px; background: var(--c); animation: blink 0.8s steps(1) infinite; }
+
+  .skel { --c: #888; height: 120px; border-radius: 4px; overflow: hidden; position: relative; border: 1px solid color-mix(in oklab, var(--c) 30%, transparent);
+    background: linear-gradient(135deg, color-mix(in oklab, var(--c) 45%, #050a18), #050a18 90%); }
+  .skel::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.25) 0 1px, transparent 1px 3px); }
+  .skel-bar { display: flex; gap: 5px; align-items: center; padding: 7px 10px; background: rgba(0, 0, 0, 0.3); }
+  .skel-bar i { width: 6px; height: 6px; border-radius: 50%; background: rgba(255, 255, 255, 0.35); }
+  .skel-bar span { flex: 1; height: 7px; margin-left: 10px; border-radius: 4px; background: rgba(255, 255, 255, 0.12); }
+  .skel-body { display: flex; gap: 12px; align-items: center; padding: 12px 14px 8px; }
+  .skel-body img { padding: 6px; border-radius: 8px; background: rgba(255, 255, 255, 0.9); box-shadow: 0 0 20px var(--c); }
+  .skel-lines { flex: 1; display: grid; gap: 6px; }
+  .skel-lines b { display: block; height: 6px; border-radius: 3px; }
+  .skel-tiles { display: flex; gap: 6px; padding: 2px 14px; }
+  .skel-tiles u { flex: 1; height: 20px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); }
+
+  .tb { height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); font: 500 11px var(--mono); letter-spacing: 0.12em; text-transform: uppercase; display: inline-grid; place-items: center; }
+  .toolbar { position: fixed; top: 14px; right: 16px; display: flex; gap: 8px; z-index: 10; }
+  .back { position: fixed; top: 14px; left: 16px; z-index: 10; }
+
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition-duration: 0.01ms !important; } }
+</style>
+</head>
+<body>
+<canvas id="bg" aria-hidden="true"></canvas>
+<div class="haze" aria-hidden="true"></div>
+<a class="tb back" href="./">← Prototypes</a>
+<div class="toolbar"><button class="tb">+ Folder</button><button class="tb">Settings</button></div>
+
+<main>
+  <header class="hero">
+    <div class="clock"><time class="time" id="time"></time><p class="sub" id="sub"></p></div>
+    <div class="search">
+      <label class="bar"><span class="prompt">&gt;</span><input placeholder="search bookmarks or the web" autocomplete="off" spellcheck="false" /><kbd>/</kbd></label>
+    </div>
+  </header>
+  <nav class="pinned" id="pinned"></nav>
+  <div class="grid" id="grid"></div>
+</main>
+<div class="preview" id="preview" aria-hidden="true"></div>
+
+<script src="data.js"></script>
+<script>
+  const { pinned, cards, favicon, host, esc, isFolder, count, visited, visits, skeleton, reduced } = FH;
+
+  FH.tick((now) => {
+    const [h, m] = now.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }).split(':');
+    document.getElementById('time').innerHTML = `${h}<span class="colon">:</span>${m}`;
+    const d = now.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+    document.getElementById('sub').innerHTML = `${d} <em>//</em> ${FH.greeting()}`;
+  });
+  addEventListener('keydown', (e) => { if (e.key === '/' && document.activeElement.tagName !== 'INPUT') { e.preventDefault(); document.querySelector('input').focus(); } });
+
+  document.getElementById('pinned').innerHTML = pinned.map((p, i) => `
+    <a class="tile" href="${p.url}" data-link="p${i}" style="--c:${p.color};--i:${i}">
+      <span class="orb"><img src="${favicon(p.url, 64)}" alt=""></span><span>${esc(p.title)}</span>
+    </a>`).join('');
+
+  const links = {};
+  pinned.forEach((p, i) => (links['p' + i] = { ...p, path: 'Bookmarks' }));
+  let seq = 0;
+  function list(items, path) {
+    return items.map((it) => {
+      if (isFolder(it)) {
+        return `<button class="row folder"><span class="chev">›</span><span class="label">${esc(it.title)}</span><span class="count" style="font:11px var(--mono);color:var(--faint)">${String(count(it.items)).padStart(2, '0')}</span></button>
+          <div class="nested"><div><div class="list">${list(it.items, path + ' / ' + it.title)}</div></div></div>`;
+      }
+      const id = 'l' + seq++;
+      links[id] = { ...it, path };
+      return `<a class="row" href="${it.url}" data-link="${id}" style="--c:${it.color}">
+          <img src="${favicon(it.url)}" alt=""><span class="label">${esc(it.title)}</span><span class="host">${host(it.url)}</span></a>`;
+    }).join('');
+  }
+
+  const grid = document.getElementById('grid');
+  function layout() {
+    const cols = Math.max(1, Math.floor((grid.clientWidth + 20) / (280 + 20)));
+    const columns = Array.from({ length: cols }, () => []);
+    seq = 0;
+    cards.forEach((c, i) => columns[i % cols].push(`
+      <section class="card" style="--i:${i}">
+        <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i><div class="glare"></div>
+        <header><span class="idx">0${i + 1}</span><h2 data-text="${esc(c.title)}">${esc(c.title)}</h2><span class="count">[${String(count(c.items)).padStart(2, '0')}]</span></header>
+        <div class="list">${list(c.items, 'bookmarks / ' + c.title.toLowerCase())}</div>
+      </section>`));
+    grid.innerHTML = columns.map((c) => `<div class="column">${c.join('')}</div>`).join('');
+  }
+  layout();
+  addEventListener('resize', () => { clearTimeout(layout.t); layout.t = setTimeout(layout, 150); });
+  grid.addEventListener('click', (e) => {
+    const f = e.target.closest('.folder');
+    if (!f) return;
+    f.classList.toggle('open');
+    f.nextElementSibling.classList.toggle('open');
+  });
+
+  // ---------- tilt + glare ----------
+  grid.addEventListener('pointermove', (e) => {
+    const card = e.target.closest('.card');
+    if (!card || reduced) return;
+    const r = card.getBoundingClientRect();
+    const nx = (e.clientX - r.left) / r.width - 0.5, ny = (e.clientY - r.top) / r.height - 0.5;
+    card.classList.add('tilting');
+    card.style.setProperty('--ry', nx * 7 + 'deg');
+    card.style.setProperty('--rx', -ny * 5 + 'deg');
+    card.style.setProperty('--gx', (nx + 0.5) * 100 + '%');
+    card.style.setProperty('--gy', (ny + 0.5) * 100 + '%');
+  });
+  grid.addEventListener('pointerout', (e) => {
+    const card = e.target.closest('.card');
+    if (!card || card.contains(e.relatedTarget)) return;
+    card.classList.remove('tilting');
+    card.style.setProperty('--rx', '0deg');
+    card.style.setProperty('--ry', '0deg');
+  });
+
+  // ---------- title decode on hover ----------
+  const GLYPHS = '!<>-_\\/[]{}=+*^?#ABCDEF0123456789';
+  grid.addEventListener('pointerover', (e) => {
+    const card = e.target.closest('.card');
+    if (!card || card.contains(e.relatedTarget)) return;
+    const h2 = card.querySelector('h2');
+    const text = h2.dataset.text;
+    let frame = 0;
+    cancelAnimationFrame(h2._raf);
+    const step = () => {
+      const done = Math.floor(frame / 2);
+      h2.textContent = [...text].map((ch, i) => (i < done ? ch : GLYPHS[(Math.random() * GLYPHS.length) | 0])).join('');
+      if (done < text.length) { frame++; h2._raf = requestAnimationFrame(step); }
+    };
+    if (!reduced) step();
+  });
+
+  // ---------- HUD preview ----------
+  const preview = document.getElementById('preview');
+  let showTimer, hideTimer, current, typeTimer;
+  document.addEventListener('pointerover', (e) => {
+    const el = e.target.closest('[data-link]');
+    if (!el || el === current) return;
+    current = el;
+    clearTimeout(hideTimer);
+    clearTimeout(showTimer);
+    showTimer = setTimeout(() => showPreview(el), preview.classList.contains('show') ? 0 : 420);
+  });
+  document.addEventListener('pointerout', (e) => {
+    const el = e.target.closest('[data-link]');
+    if (!el || el.contains(e.relatedTarget)) return;
+    current = null;
+    clearTimeout(showTimer);
+    hideTimer = setTimeout(() => preview.classList.remove('show'), 140);
+  });
+  function showPreview(el) {
+    const link = links[el.dataset.link];
+    preview.style.setProperty('--c', link.color);
+    preview.innerHTML = `<div class="scan"></div>
+      <div class="head"><span>◉ LINK</span><span>${host(link.url).toUpperCase()}</span></div>
+      ${skeleton(link)}
+      <h3>${esc(link.title)}</h3>
+      <p><span class="typed"></span><span class="caret"></span></p>
+      <dl><dt>PATH</dt><dd>${esc(link.path)}</dd><dt>SEEN</dt><dd>${visited(link.url).replace('Visited ', '')}</dd><dt>HITS</dt><dd>${visits(link.url)}</dd></dl>`;
+    // Typewriter description.
+    clearInterval(typeTimer);
+    const typed = preview.querySelector('.typed');
+    let n = 0;
+    typeTimer = setInterval(() => { typed.textContent = link.desc.slice(0, (n += 2)); if (n >= link.desc.length) clearInterval(typeTimer); }, 16);
+
+    const anchor = (el.closest('.card') || el).getBoundingClientRect();
+    const row = el.getBoundingClientRect();
+    const w = 310, h = preview.offsetHeight || 300;
+    const isTile = el.classList.contains('tile');
+    const right = anchor.right + 16 + w < innerWidth;
+    const left = isTile ? row.left + row.width / 2 - w / 2 : right ? anchor.right + 16 : anchor.left - 16 - w;
+    const top = Math.max(12, Math.min(innerHeight - h - 12, isTile ? row.bottom + 8 : row.top - 40));
+    preview.style.left = left + 'px';
+    preview.style.top = top + 'px';
+    preview.classList.add('show');
+  }
+
+  // ---------- particle constellation ----------
+  const canvas = document.getElementById('bg');
+  const ctx = canvas.getContext('2d');
+  const dpr = Math.min(devicePixelRatio || 1, 1.5);
+  let W, H, pts = [];
+  const mouse = { x: -9999, y: -9999, sx: 0, sy: 0 };
+  function resize() {
+    W = innerWidth; H = innerHeight;
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const n = Math.min(170, Math.round((W * H) / 10000));
+    pts = Array.from({ length: n }, () => {
+      const z = 0.3 + Math.random() * 0.7;
+      return { x: Math.random() * W, y: Math.random() * H, vx: (Math.random() - 0.5) * 0.25 * z, vy: (Math.random() - 0.5) * 0.25 * z, z, ox: 0, oy: 0, tw: Math.random() * 6.28 };
+    });
+  }
+  resize();
+  addEventListener('resize', resize);
+  addEventListener('pointermove', (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
+  document.addEventListener('pointerleave', () => { mouse.x = mouse.y = -9999; });
+  const shocks = [];
+  addEventListener('pointerdown', (e) => shocks.push({ x: e.clientX, y: e.clientY, r: 0 }));
+  let star = null;
+
+  function draw(t, dt) {
+    ctx.clearRect(0, 0, W, H);
+    // Whole field drifts a little against the pointer, deeper stars less: parallax.
+    const tx = mouse.x > -1 ? (mouse.x / W - 0.5) * -30 : 0, ty = mouse.y > -1 ? (mouse.y / H - 0.5) * -20 : 0;
+    mouse.sx += (tx - mouse.sx) * 0.04; mouse.sy += (ty - mouse.sy) * 0.04;
+
+    for (const s of shocks) s.r += dt * 0.9;
+    while (shocks.length && shocks[0].r > Math.max(W, H)) shocks.shift();
+
+    for (const p of pts) {
+      p.x += p.vx * dt * 0.06; p.y += p.vy * dt * 0.06;
+      if (p.x < -20) p.x = W + 20; if (p.x > W + 20) p.x = -20;
+      if (p.y < -20) p.y = H + 20; if (p.y > H + 20) p.y = -20;
+      // Repel from the pointer, spring back to the drift path.
+      const px = p.x + mouse.sx * p.z, py = p.y + mouse.sy * p.z;
+      const dx = px + p.ox - mouse.x, dy = py + p.oy - mouse.y, d = Math.hypot(dx, dy);
+      if (d < 130 && d > 0) { const f = (1 - d / 130) * 3.2; p.ox += (dx / d) * f; p.oy += (dy / d) * f; }
+      for (const s of shocks) {
+        const sd = Math.hypot(px - s.x, py - s.y) - s.r;
+        if (Math.abs(sd) < 30) { const a = Math.atan2(py - s.y, px - s.x); p.ox += Math.cos(a) * 4; p.oy += Math.sin(a) * 4; }
+      }
+      p.ox *= 0.94; p.oy *= 0.94;
+      p.rx = px + p.ox; p.ry = py + p.oy;
+    }
+
+    ctx.lineWidth = 1;
+    for (let i = 0; i < pts.length; i++) {
+      const a = pts[i];
+      for (let j = i + 1; j < pts.length; j++) {
+        const b = pts[j], dx = a.rx - b.rx, dy = a.ry - b.ry, d2 = dx * dx + dy * dy;
+        if (d2 < 120 * 120) {
+          ctx.strokeStyle = `rgba(94,234,212,${(1 - Math.sqrt(d2) / 120) * 0.22 * Math.min(a.z, b.z)})`;
+          ctx.beginPath(); ctx.moveTo(a.rx, a.ry); ctx.lineTo(b.rx, b.ry); ctx.stroke();
+        }
+      }
+      const md = Math.hypot(a.rx - mouse.x, a.ry - mouse.y);
+      if (md < 200) {
+        const g = ctx.createLinearGradient(a.rx, a.ry, mouse.x, mouse.y);
+        g.addColorStop(0, `rgba(94,234,212,${(1 - md / 200) * 0.6})`);
+        g.addColorStop(1, `rgba(255,79,216,${(1 - md / 200) * 0.5})`);
+        ctx.strokeStyle = g;
+        ctx.beginPath(); ctx.moveTo(a.rx, a.ry); ctx.lineTo(mouse.x, mouse.y); ctx.stroke();
+      }
+    }
+    for (const p of pts) {
+      const near = Math.max(0, 1 - Math.hypot(p.rx - mouse.x, p.ry - mouse.y) / 200);
+      const tw = 0.6 + Math.sin(t * 0.002 + p.tw) * 0.4;
+      ctx.fillStyle = near > 0 ? `rgba(${94 + 161 * near},${234 - 155 * near},${212 + 4 * near},${0.5 + near * 0.5})` : `rgba(180,240,255,${0.35 * tw + 0.25 * p.z})`;
+      ctx.beginPath(); ctx.arc(p.rx, p.ry, p.z * 1.6 + near * 1.6, 0, 6.283); ctx.fill();
+    }
+    for (const s of shocks) {
+      ctx.strokeStyle = `rgba(94,234,212,${Math.max(0, 0.5 - s.r / 900)})`;
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.283); ctx.stroke();
+    }
+
+    // Occasional shooting star.
+    if (!star && Math.random() < 0.0025) star = { x: Math.random() * W * 0.7, y: Math.random() * H * 0.3, l: 0 };
+    if (star) {
+      star.l += dt;
+      const p = star.l / 900, x = star.x + p * 500, y = star.y + p * 220;
+      const g = ctx.createLinearGradient(x - 120, y - 53, x, y);
+      g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(1, `rgba(255,255,255,${0.8 * (1 - p)})`);
+      ctx.strokeStyle = g; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x - 120, y - 53); ctx.lineTo(x, y); ctx.stroke();
+      if (p >= 1) star = null;
+    }
+  }
+  if (reduced) draw(0, 0); else FH.loop(draw);
+</script>
+</body>
+</html>
