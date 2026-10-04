@@ -4,7 +4,7 @@
 export type Frame = (t: number, dt: number) => void;
 
 /** Starts an animated background on `canvas`; returns a cleanup function. */
-export type FxEngine = (canvas: HTMLCanvasElement, opts: { animate: boolean }) => () => void;
+export type FxEngine = (canvas: HTMLCanvasElement, opts: { animate: boolean; theme: 'light' | 'dark' }) => () => void;
 
 /**
  * rAF loop that sleeps while the tab is hidden — a new-tab page spends most of

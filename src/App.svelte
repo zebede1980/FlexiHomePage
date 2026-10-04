@@ -142,7 +142,7 @@
   </div>
 {/snippet}
 
-<Backdrop style={look.id} css={background} animate={s.effects} />
+<Backdrop style={look.id} {theme} css={background} animate={s.effects} />
 
 <div class="toolbar">
   {#if home}
@@ -289,6 +289,15 @@
     width: 36px;
     padding: 0;
     justify-content: center;
+  }
+  /* Dot Field focus mode: the card you're in stays sharp, the rest step back. Off mid-drag. */
+  :global([data-style='dotfield'] body:not(.is-dragging)) .grid:has(:global([data-card-id]:hover)) :global([data-card-id]:not(:hover)) {
+    opacity: 0.55;
+    filter: saturate(0.4);
+  }
+  :global([data-style='dotfield']) .tb-btn {
+    border: 0;
+    font-weight: 600;
   }
   :global([data-style='constellation']) .tb-btn {
     height: 34px;

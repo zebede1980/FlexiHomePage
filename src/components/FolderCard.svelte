@@ -4,7 +4,7 @@
   import Menu from './Menu.svelte';
   import { dropInto, requestDelete } from '../lib/actions';
   import { decode, tilt } from '../lib/fx/pointer';
-  import { openInBackgroundTabs } from '../lib/links';
+  import { openInBackgroundTabs, tileColor } from '../lib/links';
   import { settings } from '../lib/settings-store.svelte';
   import { collectLinks, countLinks, pathKey, type BNode } from '../lib/tree';
   import { DRAG_MIME, acceptsDrag, clearHint, drag, endDrag, hint, isDragging, openDialog, setHint, startDrag } from '../lib/ui.svelte';
@@ -16,6 +16,7 @@
   const collapsed = $derived(settings.value.collapsed.includes(key));
   const total = $derived(countLinks(node));
   const hud = $derived(settings.value.style === 'constellation');
+  const dot = $derived(settings.value.style === 'dotfield');
   const fx = $derived(hud && settings.value.effects);
   const pad2 = (n: number) => String(n).padStart(2, '0');
 
@@ -87,11 +88,12 @@
     <button class="title" aria-expanded={!collapsed} onclick={toggle} title={collapsed ? 'Expand' : 'Collapse'}>
       <span class="chev" class:open={!collapsed}><Icon name="chevron-right" size={14} /></span>
       {#if hud}<span class="idx">{pad2(index + 1)}</span>{/if}
+      {#if dot}<span class="badge" style:background={tileColor(node.title)} aria-hidden="true">{(node.title.trim()[0] ?? '?').toUpperCase()}</span>{/if}
       <h2>
         <span class="sr-only">{node.title || 'Untitled folder'}</span>
         <span aria-hidden="true" use:decode={{ text: node.title || 'Untitled folder', enabled: fx, trigger: '[data-card-id]' }}></span>
       </h2>
-      <span class="count">{hud ? `[${pad2(total)}]` : total}</span>
+      <span class="count">{hud ? `[${pad2(total)}]` : dot ? `${total} ${total === 1 ? 'link' : 'links'}` : total}</span>
     </button>
     <div class="tools">
       <span class="icon-btn grip" title="Drag to move this group" aria-hidden="true"><Icon name="grip" size={16} /></span>
@@ -342,5 +344,73 @@
     background: none;
     color: var(--text-faint);
     font: 500 11px var(--font-mono);
+  }
+
+  /* ---- Dot Field: paper cards that lift, with a letter badge ---- */
+  :global([data-style='dotfield']) .card {
+    padding: 8px;
+    transition:
+      translate 0.45s cubic-bezier(0.34, 1.56, 0.64, 1),
+      box-shadow 0.35s,
+      opacity 0.35s,
+      filter 0.35s,
+      background 0.15s;
+    animation: lift-in 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+    animation-delay: calc(0.2s + var(--i, 0) * 0.06s);
+  }
+  @keyframes lift-in {
+    from {
+      opacity: 0;
+      translate: 0 20px;
+    }
+  }
+  :global([data-style='dotfield']) .card:hover {
+    translate: 0 -4px;
+    box-shadow:
+      var(--shadow-lift),
+      0 0 0 1px var(--border);
+  }
+  :global([data-style='dotfield']) header {
+    padding: 4px 2px 8px 4px;
+  }
+  :global([data-style='dotfield']) .title {
+    gap: 10px;
+    height: 42px;
+  }
+  :global([data-style='dotfield']) .chev {
+    display: none;
+  }
+  .badge {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    color: #fff;
+    font: 700 16px/1 var(--font-serif);
+    transition:
+      rotate 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+      scale 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+      opacity 0.2s;
+  }
+  .card:hover .badge {
+    rotate: -10deg;
+    scale: 1.08;
+  }
+  /* Collapsed: the badge dims, since there's no chevron to say so. */
+  .title[aria-expanded='false'] .badge {
+    opacity: 0.55;
+  }
+  :global([data-style='dotfield']) h2 {
+    flex: 1;
+    font: 600 21px/1.1 var(--font-serif);
+    letter-spacing: -0.01em;
+  }
+  :global([data-style='dotfield']) .count {
+    padding: 0;
+    background: none;
+    color: var(--text-muted);
+    font-size: 12px;
   }
 </style>

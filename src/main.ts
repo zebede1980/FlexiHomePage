@@ -1,5 +1,6 @@
 import './app.css';
 import './styles/constellation.css';
+import './styles/dotfield.css';
 import { mount } from 'svelte';
 import App from './App.svelte';
 

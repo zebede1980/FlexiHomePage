@@ -100,7 +100,7 @@
       {#if look.animated}
         <label class="switch">
           <input type="checkbox" checked={s.effects} onchange={(e) => set({ effects: e.currentTarget.checked })} />
-          <span>Animated effects <small>(background motion, card tilt)</small></span>
+          <span>Animated effects <small>(background motion and hover effects)</small></span>
         </label>
       {/if}
       <label class="switch">

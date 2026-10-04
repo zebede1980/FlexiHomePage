@@ -42,6 +42,17 @@ export const STYLES: StyleDef[] = [
     swatch:
       'radial-gradient(1.5px 1.5px at 20% 30%, #5eead4, transparent), radial-gradient(1.5px 1.5px at 62% 68%, #5eead4, transparent), radial-gradient(1.5px 1.5px at 80% 22%, #fff, transparent), radial-gradient(1.5px 1.5px at 38% 58%, #ff4fd8, transparent), radial-gradient(70% 60% at 50% 0%, #5eead433, transparent), #040814',
   },
+  {
+    id: 'dotfield',
+    label: 'Dot Field',
+    description: 'Warm and tactile: a breathing dot grid, a magnifying dock, cards that lift.',
+    themes: ['light', 'dark'],
+    accent: '#ff5b3a',
+    customBackground: false,
+    animated: true,
+    swatch:
+      'radial-gradient(circle, #1f1c1738 1.2px, transparent 1.7px) 0 0 / 11px 11px, radial-gradient(45% 55% at 70% 60%, #ff5b3a40, transparent), #f5f2ec',
+  },
 ];
 
 export function styleDef(id: StyleId): StyleDef {

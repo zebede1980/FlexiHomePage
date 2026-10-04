@@ -77,7 +77,10 @@
     ondragend={endDrag}
   >
     <Favicon {url} title={node.title} size={16} />
-    <span class="label">{label}</span>
+    <span class="text">
+      <span class="label">{label}</span>
+      <span class="host"><span>{hostOf(url)}</span></span>
+    </span>
   </a>
   <div class="actions">
     <span class="icon-btn grip" title="Drag to move" aria-hidden="true" draggable="true" {ondragstart} ondragend={endDrag}>
@@ -135,10 +138,19 @@
     padding: 0 8px;
     border-radius: var(--radius-sm);
   }
+  .text {
+    flex: 1;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
   .label {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
+  }
+  .host {
+    display: none;
   }
   /* Overlaid rather than inline so hidden buttons don't steal width from the title. */
   .actions {
@@ -232,5 +244,74 @@
   }
   :global([data-style='constellation']) .row:hover .label {
     translate: 4px 0;
+  }
+
+  /* ---- Dot Field: favicon tiles, a colour wash, and the domain unfolding underneath ---- */
+  :global([data-style='dotfield']) .row:hover {
+    background: none;
+  }
+  :global([data-style='dotfield']) .link {
+    isolation: isolate;
+    position: relative;
+    height: auto;
+    min-height: calc(var(--row-h) + 6px);
+    padding: 5px 8px;
+    gap: 11px;
+    border-radius: 14px;
+  }
+  :global([data-style='dotfield']) .link::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: color-mix(in oklab, var(--c) 15%, var(--surface-solid));
+    scale: 0 1;
+    transform-origin: left;
+    transition: scale 0.35s var(--ease);
+  }
+  :global([data-style='dotfield']) .row:hover .link::before {
+    scale: 1 1;
+  }
+  :global([data-style='dotfield']) .link > :global(img) {
+    box-sizing: content-box;
+    padding: 5px;
+    border-radius: 9px;
+    background: var(--surface-solid);
+    box-shadow:
+      0 0 0 1px var(--border),
+      0 1px 3px rgba(60, 40, 10, 0.08);
+    transition:
+      rotate 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+      scale 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  :global([data-style='dotfield']) .row:hover .link > :global(img) {
+    rotate: -8deg;
+    scale: 1.1;
+  }
+  :global([data-style='dotfield']) .label {
+    font-weight: 500;
+  }
+  :global([data-style='dotfield']) .host {
+    display: grid;
+    grid-template-rows: 0fr;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    transition: grid-template-rows 0.3s var(--ease);
+  }
+  :global([data-style='dotfield']) .host > span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  :global([data-style='dotfield']) .row:hover .host {
+    grid-template-rows: 1fr;
+  }
+  :global([data-style='dotfield'] body.is-dragging) .host {
+    grid-template-rows: 0fr; /* no row-height changes under a drop marker */
+  }
+  :global([data-style='dotfield']) .actions {
+    right: 6px;
+    border-radius: 10px;
   }
 </style>

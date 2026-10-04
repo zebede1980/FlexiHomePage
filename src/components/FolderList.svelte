@@ -284,4 +284,22 @@
     border-left-style: dashed;
     border-left-color: var(--border);
   }
+
+  :global([data-style='dotfield']) .toggle {
+    height: calc(var(--row-h) + 6px);
+    gap: 10px;
+  }
+  :global([data-style='dotfield']) .toggle > :global(svg) {
+    box-sizing: content-box;
+    padding: 5px;
+    border-radius: 9px;
+    background: color-mix(in oklab, var(--accent) 13%, var(--surface-solid));
+  }
+  :global([data-style='dotfield']) .row {
+    border-radius: 14px;
+  }
+  :global([data-style='dotfield']) .nested {
+    margin-left: 18px;
+    border-left: 2px dotted var(--border-strong);
+  }
 </style>

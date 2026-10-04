@@ -14,8 +14,10 @@ your real browser bookmarks.
 - **Search.** Start typing anywhere: matches bookmarks by name, site and folder,
   goes straight to typed addresses, or searches the web.
 - **Looks.** Pick a style: *Classic* (glass cards, light/dark/auto theme,
-  accent colour, gradient or image backgrounds) or *Constellation* (a star
-  field that reacts to the pointer, HUD-style panels). Rest the pointer on a
+  accent colour, gradient or image backgrounds), *Constellation* (a star
+  field that reacts to the pointer, HUD-style panels) or *Dot Field* (warm
+  light/dark paper, a dot grid that swells around the pointer, a magnifying
+  dock for pinned links). Rest the pointer on a
   link for a preview. Card width and density work in every style; animation
   can be switched off and respects the system's reduce-motion setting.
 - **Syncs between machines** via Vivaldi Sync, without a server (see below).

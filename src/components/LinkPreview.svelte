@@ -17,6 +17,7 @@
 
   const t = $derived(preview.target);
   const hud = $derived(settings.value.style === 'constellation');
+  const dot = $derived(settings.value.style === 'dotfield');
   const url = $derived(t?.node.url ?? '');
   const host = $derived(hostOf(url));
   const added = $derived(
@@ -86,6 +87,7 @@
 >
   {#if t}
     {#if hud}<div class="scan"></div>{/if}
+    {#if dot}<i class="tape"></i>{/if}
     <div class="head"><span>{hud ? '◉ LINK' : ''}</span><span>{host}</span></div>
     <div class="art">
       <div class="art-bar"><i></i><i></i><i></i><span></span></div>
@@ -323,5 +325,85 @@
   }
   :global([data-style='constellation']) dd {
     color: var(--text);
+  }
+
+  /* ---- Dot Field: a taped-on polaroid that straightens as it lands ---- */
+  :global([data-style='dotfield']) .preview {
+    overflow: visible;
+    padding: 10px 10px 14px;
+    border-radius: 18px;
+    background: var(--surface-solid);
+    backdrop-filter: none;
+    border: 0;
+    box-shadow:
+      var(--shadow-pop),
+      0 0 0 1px var(--border);
+    rotate: -6deg;
+    scale: 0.85;
+    translate: 0 10px;
+    transition:
+      opacity 0.2s,
+      rotate 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+      scale 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+      translate 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+      top 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+      left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  :global([data-style='dotfield']) .preview.show {
+    rotate: -1.5deg;
+    scale: 1;
+    translate: 0 0;
+  }
+  :global([data-style='dotfield']) .preview.jump {
+    transition-property: opacity, rotate, scale, translate;
+  }
+  .tape {
+    position: absolute;
+    top: -10px;
+    left: 50%;
+    width: 70px;
+    height: 20px;
+    translate: -50% 0;
+    rotate: 3deg;
+    background: rgba(255, 214, 120, 0.6);
+  }
+  :global([data-style='dotfield']) .art {
+    height: 136px;
+    border-radius: 10px;
+    background: color-mix(in oklab, var(--c) 22%, var(--surface-solid));
+  }
+  :global([data-style='dotfield']) .art-bar {
+    background: color-mix(in oklab, var(--c) 85%, black);
+  }
+  :global([data-style='dotfield']) .art-tiles u {
+    background: color-mix(in oklab, var(--surface-solid) 70%, transparent);
+  }
+  :global([data-style='dotfield']) .art-lines b {
+    background: color-mix(in oklab, var(--text) 25%, transparent);
+  }
+  :global([data-style='dotfield']) h3 {
+    margin-top: 12px;
+    font: 600 19px/1.15 var(--font-serif);
+  }
+  /* Facts as chips rather than a table. */
+  :global([data-style='dotfield']) dl {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 10px;
+  }
+  :global([data-style='dotfield']) dt {
+    display: none;
+  }
+  :global([data-style='dotfield']) dd {
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--hover);
+    font-size: 11px;
+    font-weight: 600;
+  }
+  :global([data-style='dotfield']) dd:first-of-type {
+    background: color-mix(in oklab, var(--c) 16%, var(--surface-solid));
+    color: color-mix(in oklab, var(--c) 70%, var(--text));
   }
 </style>

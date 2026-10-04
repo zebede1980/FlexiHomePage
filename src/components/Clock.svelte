@@ -16,6 +16,13 @@
 
   const s = $derived(settings.value);
   const hud = $derived(s.style === 'constellation');
+  const dot = $derived(s.style === 'dotfield');
+  /** After the first paint only changed digits animate, without the opening stagger. */
+  let settled = $state(false);
+  $effect(() => {
+    const t = setTimeout(() => (settled = true), 1500);
+    return () => clearTimeout(t);
+  });
   const time = $derived(
     now.toLocaleTimeString(undefined, { hour: s.clock24h ? '2-digit' : 'numeric', minute: '2-digit', hour12: !s.clock24h }),
   );
@@ -38,12 +45,19 @@
   <div class="clock">
     {#if s.showClock}
       <time class="time" datetime={now.toISOString()}>
-        {#if hud && timeParts}{timeParts[1]}<span class="colon">{timeParts[2]}</span>{timeParts[3]}{:else}{time}{/if}
+        {#if hud && timeParts}
+          {timeParts[1]}<span class="colon">{timeParts[2]}</span>{timeParts[3]}
+        {:else if dot}
+          <!-- Keyed by position + character, so a digit that changes is a new element and drops in. -->
+          {#each [...time] as ch, i (`${i}${ch}`)}<span class="digit" style:--i={settled ? 0 : i}>{ch}</span>{/each}
+        {:else}
+          {time}
+        {/if}
       </time>
     {/if}
     <p class="sub">
       {#if s.showGreeting}<span>{greeting}</span>{/if}
-      {#if s.showGreeting && s.showClock}<span class="dot" aria-hidden="true">{hud ? '//' : '·'}</span>{/if}
+      {#if s.showGreeting && s.showClock}<span class="dot" aria-hidden="true">{hud ? '//' : dot ? '—' : '·'}</span>{/if}
       {#if s.showClock}<span>{date}</span>{/if}
     </p>
   </div>
@@ -118,5 +132,45 @@
   :global([data-style='constellation']) .dot {
     color: var(--accent);
     opacity: 1;
+  }
+
+  /* ---- Dot Field: editorial serif, digits that drop into place ---- */
+  :global([data-style='dotfield']) .time {
+    font: italic 400 clamp(72px, 10vw, 128px) / 0.95 var(--font-serif);
+    letter-spacing: -0.02em;
+    font-variant-numeric: lining-nums tabular-nums;
+    text-shadow: none;
+  }
+  .digit {
+    display: inline-block;
+    white-space: pre;
+    animation: drop 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation-delay: calc(var(--i) * 0.06s);
+  }
+  @keyframes drop {
+    from {
+      opacity: 0;
+      translate: 0 -0.4em;
+      rotate: -8deg;
+    }
+  }
+  :global([data-style='dotfield']) .sub {
+    align-items: center;
+    margin-top: 6px;
+    color: var(--text-muted);
+  }
+  :global([data-style='dotfield']) .sub > span:first-child {
+    color: var(--text);
+    font-weight: 600;
+  }
+  /* A little sun before the greeting. */
+  :global([data-style='dotfield']) .sub::before {
+    content: '';
+    width: 10px;
+    height: 10px;
+    margin-right: 2px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 4px color-mix(in oklab, var(--accent) 20%, transparent);
   }
 </style>

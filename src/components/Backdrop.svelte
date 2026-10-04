@@ -1,12 +1,13 @@
 <script lang="ts">
   import { constellation } from '../lib/fx/constellation';
+  import { dotfield } from '../lib/fx/dotfield';
   import type { FxEngine } from '../lib/fx/loop';
   import type { StyleId } from '../lib/settings';
 
   /** `css` is the classic background; styles with an engine draw their own. */
-  let { style, css, animate }: { style: StyleId; css: string; animate: boolean } = $props();
+  let { style, theme, css, animate }: { style: StyleId; theme: 'light' | 'dark'; css: string; animate: boolean } = $props();
 
-  const ENGINES: Partial<Record<StyleId, FxEngine>> = { constellation };
+  const ENGINES: Partial<Record<StyleId, FxEngine>> = { constellation, dotfield };
   const engine = $derived(ENGINES[style]);
 
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -15,9 +16,9 @@
 
   let canvas = $state<HTMLCanvasElement>();
 
-  // Restarts whenever the style or motion preference changes; the cleanup stops the old loop.
+  // Restarts whenever the style, theme or motion preference changes; the cleanup stops the old loop.
   $effect(() => {
-    if (engine && canvas) return engine(canvas, { animate: animate && !reduced });
+    if (engine && canvas) return engine(canvas, { animate: animate && !reduced, theme });
   });
 </script>
 

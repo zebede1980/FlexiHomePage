@@ -86,3 +86,60 @@ export const decode: Action<HTMLElement, { text: string; enabled: boolean; trigg
     },
   };
 };
+
+/**
+ * macOS-dock magnification: sets --s (1 to 1.5) on each `[role="listitem"]`
+ * child by its distance from the pointer, and a `settling` class on the
+ * container while it springs back. Distances are measured from where the items
+ * sat at rest, so growing icons pushing their neighbours aside can't feed back
+ * into the next frame.
+ */
+export const magnify: Action<HTMLElement, boolean> = (node, enabled = false) => {
+  let on = enabled;
+  let rest: { el: HTMLElement; x: number; y: number }[] = [];
+  const REACH = 150;
+  const GROW = 0.5;
+
+  const items = () => [...node.querySelectorAll<HTMLElement>(':scope > [role="listitem"]')];
+
+  function measure() {
+    rest = items().map((el) => {
+      const r = el.getBoundingClientRect();
+      return { el, x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    });
+  }
+
+  function move(e: PointerEvent) {
+    if (!on || drag.active || reducedMotion()) return;
+    if (!rest.length) measure();
+    node.classList.remove('settling');
+    for (const { el, x, y } of rest) {
+      const d = Math.hypot(e.clientX - x, (e.clientY - y) * 1.5);
+      const s = d >= REACH ? 1 : 1 + (GROW * (Math.cos((d / REACH) * Math.PI) + 1)) / 2;
+      el.style.setProperty('--s', s.toFixed(3));
+    }
+  }
+
+  function reset() {
+    rest = [];
+    node.classList.add('settling');
+    for (const el of items()) el.style.removeProperty('--s');
+  }
+
+  node.addEventListener('pointermove', move);
+  node.addEventListener('pointerleave', reset);
+  node.addEventListener('pointercancel', reset); // fired when a drag takes over
+  node.addEventListener('dragstart', reset);
+  return {
+    update(v) {
+      on = v;
+      if (!v) reset();
+    },
+    destroy() {
+      node.removeEventListener('pointermove', move);
+      node.removeEventListener('pointerleave', reset);
+      node.removeEventListener('pointercancel', reset);
+      node.removeEventListener('dragstart', reset);
+    },
+  };
+};

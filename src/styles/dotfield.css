@@ -1,0 +1,62 @@
+/* Dot Field: warm paper palette in light and dark. Component flourishes live in
+   each component as :global([data-style='dotfield']) rules. The extra
+   [data-theme=…] makes these beat the light/dark tokens in app.css. */
+
+:root[data-style='dotfield'][data-theme='light'] {
+  --bg: #f5f2ec;
+  --surface: #fffdf9;
+  --surface-strong: #fffdf9;
+  --surface-solid: #fffdf9;
+  --hover: rgba(31, 28, 23, 0.05);
+  --active: rgba(31, 28, 23, 0.09);
+  --text: #1f1c17;
+  --text-muted: #6d675c;
+  --text-faint: #a59e90;
+  --ink: #1f1c17;
+  --ink-muted: #6d675c;
+  --border: rgba(31, 28, 23, 0.08);
+  --border-strong: rgba(31, 28, 23, 0.16);
+  --shadow: 0 1px 2px rgba(60, 40, 10, 0.06), 0 8px 24px rgba(60, 40, 10, 0.07);
+  --shadow-lift: 0 2px 4px rgba(60, 40, 10, 0.06), 0 24px 50px rgba(60, 40, 10, 0.14);
+  --shadow-pop: 0 2px 6px rgba(60, 40, 10, 0.08), 0 30px 70px rgba(60, 40, 10, 0.22);
+  --danger: #d4380d;
+}
+
+:root[data-style='dotfield'][data-theme='dark'] {
+  --bg: #15130f;
+  --surface: #201d18;
+  --surface-strong: #26221c;
+  --surface-solid: #26221c;
+  --hover: rgba(255, 244, 225, 0.06);
+  --active: rgba(255, 244, 225, 0.1);
+  --text: #f2ede3;
+  --text-muted: #a8a092;
+  --text-faint: #6f685c;
+  --ink: #f2ede3;
+  --ink-muted: #a8a092;
+  --border: rgba(255, 244, 225, 0.08);
+  --border-strong: rgba(255, 244, 225, 0.15);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 28px rgba(0, 0, 0, 0.35);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.3), 0 26px 56px rgba(0, 0, 0, 0.5);
+  --shadow-pop: 0 2px 8px rgba(0, 0, 0, 0.4), 0 30px 70px rgba(0, 0, 0, 0.6);
+  --danger: #ff7a5c;
+}
+
+:root[data-style='dotfield'] {
+  --radius-sm: 12px;
+  --radius: 16px;
+  --radius-lg: 24px;
+}
+
+/* Cards are solid paper, so skip the blur: cheaper with a live canvas behind. */
+[data-style='dotfield'] .glass {
+  background: var(--surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: var(--shadow), 0 0 0 1px var(--border);
+  border-color: transparent;
+}
+
+[data-style='dotfield'] .btn {
+  font-weight: 600;
+}

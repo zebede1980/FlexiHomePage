@@ -3,6 +3,7 @@
   import Icon from './Icon.svelte';
   import { dropInto, isInternalUrl, navigate, requestDelete } from '../lib/actions';
   import { brandColor } from '../lib/brand-color.svelte';
+  import { magnify } from '../lib/fx/pointer';
   import { preview } from '../lib/preview.svelte';
   import { settings } from '../lib/settings-store.svelte';
   import { hostOf, type BNode } from '../lib/tree';
@@ -61,6 +62,7 @@
 
 <div
   class="pinned"
+  use:magnify={settings.value.style === 'dotfield' && settings.value.effects}
   class:drop-inside={hint.id === ROW_ID}
   class:empty={links.length === 0}
   role="list"
@@ -334,5 +336,103 @@
   :global([data-style='constellation']) .tile-wrap.drop-before::before,
   :global([data-style='constellation']) .tile-wrap.drop-after::after {
     height: 60px;
+  }
+
+  /* ---- Dot Field: a dock that magnifies under the pointer (--s comes from use:magnify) ---- */
+  :global([data-style='dotfield']) .pinned:not(.empty) {
+    justify-self: center;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 12px 16px;
+    border-radius: 26px;
+    background: color-mix(in oklab, var(--surface) 82%, transparent);
+    backdrop-filter: blur(12px);
+    box-shadow:
+      var(--shadow),
+      0 0 0 1px var(--border);
+    animation: dock-in 0.7s 0.15s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  }
+  @keyframes dock-in {
+    from {
+      opacity: 0;
+      translate: 0 20px;
+    }
+  }
+  :global([data-style='dotfield']) .pinned.drop-inside {
+    box-shadow:
+      var(--shadow),
+      inset 0 0 0 2px var(--accent);
+  }
+  :global([data-style='dotfield']) .tile {
+    position: relative;
+    width: auto;
+    padding: 0;
+    gap: 0;
+  }
+  :global([data-style='dotfield']) .tile:hover {
+    background: none;
+  }
+  /* Grows with scale (no vertical reflow) and spreads its neighbours with margin. */
+  :global([data-style='dotfield']) .icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 30%;
+    background: var(--surface-solid);
+    box-shadow:
+      0 2px 6px rgba(60, 40, 10, 0.12),
+      0 0 0 1px var(--border);
+    scale: var(--s, 1);
+    transform-origin: 50% 100%;
+    margin: 0 calc((var(--s, 1) - 1) * 26px);
+    transition:
+      scale 0.18s var(--ease),
+      margin 0.18s var(--ease),
+      box-shadow 0.2s;
+  }
+  :global([data-style='dotfield']) .pinned:global(.settling) .icon {
+    transition-duration: 0.45s;
+    transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  :global([data-style='dotfield']) .tile:hover .icon {
+    transform: none;
+    box-shadow:
+      0 6px 16px rgba(60, 40, 10, 0.18),
+      0 0 0 1px var(--border);
+  }
+  /* The name becomes a tooltip above the (possibly magnified) icon. */
+  :global([data-style='dotfield']) .label {
+    position: absolute;
+    z-index: 2;
+    left: 50%;
+    bottom: calc(52px * var(--s, 1) + 12px);
+    max-width: none;
+    padding: 4px 10px;
+    border-radius: 8px;
+    background: var(--text);
+    color: var(--bg);
+    font-size: 12px;
+    font-weight: 600;
+    text-shadow: none;
+    opacity: 0;
+    translate: -50% 4px;
+    pointer-events: none;
+    transition:
+      opacity 0.15s,
+      translate 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+      bottom 0.18s var(--ease);
+  }
+  :global([data-style='dotfield']) .tile:hover .label,
+  :global([data-style='dotfield']) .tile:focus-visible .label {
+    opacity: 1;
+    translate: -50% 0;
+  }
+  :global([data-style='dotfield']) .tile-actions {
+    top: -10px;
+    right: -10px;
+  }
+  :global([data-style='dotfield']) .tile-wrap.drop-before::before,
+  :global([data-style='dotfield']) .tile-wrap.drop-after::after {
+    top: 0;
+    height: 52px;
   }
 </style>

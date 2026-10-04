@@ -301,4 +301,37 @@
     font-family: var(--font-mono);
     font-size: 11px;
   }
+
+  /* ---- Dot Field: a fat paper pill that widens when you use it ---- */
+  :global([data-style='dotfield']) .search {
+    width: min(560px, 100%);
+    transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  :global([data-style='dotfield']) .search:focus-within {
+    width: min(680px, 100%);
+  }
+  :global([data-style='dotfield']) .bar {
+    height: 56px;
+    padding-left: 22px;
+    background: var(--surface-solid);
+  }
+  :global([data-style='dotfield']) .bar:focus-within {
+    box-shadow:
+      var(--shadow-lift),
+      0 0 0 2px var(--text);
+  }
+  :global([data-style='dotfield']) .open .bar {
+    border-radius: 28px 28px 0 0;
+  }
+  :global([data-style='dotfield']) kbd {
+    border: 0;
+    border-radius: 999px;
+    background: var(--hover);
+  }
+  :global([data-style='dotfield']) .results {
+    border-radius: 0 0 26px 26px;
+  }
+  :global([data-style='dotfield']) li.active {
+    background: color-mix(in oklab, var(--accent) 12%, var(--surface-solid));
+  }
 </style>
