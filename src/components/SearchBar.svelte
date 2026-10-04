@@ -2,7 +2,7 @@
   import Favicon from './Favicon.svelte';
   import Icon from './Icon.svelte';
   import { navigate } from '../lib/actions';
-  import { SEARCH_ENGINES, searchUrl } from '../lib/settings';
+  import { ASK_CLAUDE_URL, SEARCH_ENGINES, searchUrl } from '../lib/settings';
   import { settings } from '../lib/settings-store.svelte';
   import { hostOf, searchLinks, toUrl, type LinkEntry } from '../lib/tree';
 
@@ -16,7 +16,8 @@
   type Result =
     | { kind: 'link'; entry: LinkEntry }
     | { kind: 'url'; url: string }
-    | { kind: 'web'; query: string };
+    | { kind: 'web'; query: string }
+    | { kind: 'claude'; query: string };
 
   const engineName = $derived(SEARCH_ENGINES.find((e) => e.url === settings.value.searchEngine)?.label ?? 'the web');
 
@@ -28,6 +29,7 @@
     if (direct) out.push({ kind: 'url', url: direct });
     for (const entry of searchLinks(links, q, 7)) out.push({ kind: 'link', entry });
     out.push({ kind: 'web', query: q });
+    out.push({ kind: 'claude', query: q });
     return out;
   });
 
@@ -39,6 +41,7 @@
   function urlOf(r: Result): string {
     if (r.kind === 'link') return r.entry.node.url!;
     if (r.kind === 'url') return r.url;
+    if (r.kind === 'claude') return searchUrl(ASK_CLAUDE_URL, r.query);
     return searchUrl(settings.value.searchEngine, r.query);
   }
 
@@ -59,7 +62,9 @@
       active = Math.max(0, active - 1);
     } else if (e.key === 'Enter' && results[active]) {
       e.preventDefault();
-      go(results[active], settings.value.openInNewTab || e.ctrlKey || e.metaKey);
+      // Shift+Enter asks Claude whatever row is highlighted.
+      const target = e.shiftKey ? results.find((r) => r.kind === 'claude')! : results[active];
+      go(target, settings.value.openInNewTab || e.ctrlKey || e.metaKey);
     } else if (e.key === 'Escape') {
       if (query) query = '';
       else input.blur();
@@ -90,12 +95,12 @@
     {:else}
       <Icon name="search" size={18} />
     {/if}
-    <span class="sr-only">Search bookmarks or the web</span>
+    <span class="sr-only">Search bookmarks, the web, or ask Claude</span>
     <input
       bind:this={input}
       bind:value={query}
       type="text"
-      placeholder="Search bookmarks or the web"
+      placeholder="Search bookmarks, the web, or ask Claude"
       autocomplete="off"
       spellcheck="false"
       role="combobox"
@@ -136,11 +141,14 @@
           {:else if r.kind === 'url'}
             <span class="glyph"><Icon name="link" size={16} /></span>
             <span class="main"><span class="title">Go to {r.url}</span></span>
-          {:else}
+          {:else if r.kind === 'web'}
             <span class="glyph"><Icon name="globe" size={16} /></span>
             <span class="main"><span class="title">Search {engineName} for “{r.query}”</span></span>
+          {:else}
+            <Favicon url="https://claude.ai/" title="Claude" size={18} />
+            <span class="main"><span class="title">Ask Claude “{r.query}”</span></span>
           {/if}
-          {#if i === active}<kbd class="enter">↵</kbd>{/if}
+          {#if i === active}<kbd class="enter">↵</kbd>{:else if r.kind === 'claude'}<kbd class="enter" title="Shift+Enter">⇧↵</kbd>{/if}
         </li>
       {/each}
     </ul>

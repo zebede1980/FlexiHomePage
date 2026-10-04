@@ -53,6 +53,9 @@ export const SEARCH_ENGINES: { label: string; url: string }[] = [
   { label: 'Startpage', url: 'https://www.startpage.com/sp/search?query=%s' },
 ];
 
+/** Opens a new Claude chat with the query filled in (and sent, if you're signed in). */
+export const ASK_CLAUDE_URL = 'https://claude.ai/new?q=%s';
+
 export const ACCENTS = ['#7c6cff', '#3b82f6', '#0ea5e9', '#14b8a6', '#22c55e', '#f59e0b', '#f97316', '#f43f5e', '#ec4899', '#64748b'];
 
 export const DEFAULT_SETTINGS: Settings = {

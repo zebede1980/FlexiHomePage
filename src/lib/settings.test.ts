@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS, decodeSettingsUrl, encodeSettingsUrl, normalizeSettings, searchUrl } from './settings';
+import { ASK_CLAUDE_URL, DEFAULT_SETTINGS, decodeSettingsUrl, encodeSettingsUrl, normalizeSettings, searchUrl } from './settings';
 
 describe('normalizeSettings', () => {
   it('returns defaults for junk', () => {
@@ -59,5 +59,6 @@ describe('settings bookmark URL', () => {
 describe('searchUrl', () => {
   it('encodes the query into the template', () => {
     expect(searchUrl('https://duckduckgo.com/?q=%s', 'a&b c')).toBe('https://duckduckgo.com/?q=a%26b%20c');
+    expect(searchUrl(ASK_CLAUDE_URL, 'why is the sky blue?')).toBe('https://claude.ai/new?q=why%20is%20the%20sky%20blue%3F');
   });
 });
