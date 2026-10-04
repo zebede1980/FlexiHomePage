@@ -4,12 +4,14 @@
   import { bookmarks } from '../lib/bookmarks.svelte';
   import { ACCENTS, SEARCH_ENGINES, type Settings, type ThemeMode } from '../lib/settings';
   import { settings } from '../lib/settings-store.svelte';
+  import { STYLES, styleDef } from '../lib/styles';
   import { listFolders, pathKey, SETTINGS_FOLDER_TITLE } from '../lib/tree';
   import { panel } from '../lib/ui.svelte';
 
   let { resolvedTheme }: { resolvedTheme: 'light' | 'dark' } = $props();
 
   const s = $derived(settings.value);
+  const look = $derived(styleDef(s.style));
   const set = (patch: Partial<Settings>) => settings.update(patch);
 
   const folders = $derived(bookmarks.tree ? listFolders(bookmarks.tree) : []);
@@ -83,78 +85,108 @@
     <section>
       <h3>Appearance</h3>
       <div class="field">
-        <span>Theme</span>
-        <div class="segmented" role="radiogroup" aria-label="Theme">
-          {#each themes as t (t.id)}
-            <button role="radio" aria-checked={s.theme === t.id} class:on={s.theme === t.id} onclick={() => set({ theme: t.id })}>
-              <Icon name={t.icon} size={15} />
-              {t.label}
+        <span>Style</span>
+        <div class="styles" role="radiogroup" aria-label="Style">
+          {#each STYLES as st (st.id)}
+            <button class="style" role="radio" aria-checked={s.style === st.id} class:on={s.style === st.id} onclick={() => set({ style: st.id })}>
+              <span class="style-swatch" style:background={st.swatch}></span>
+              <strong>{st.label}</strong>
+              <small>{st.description}</small>
             </button>
           {/each}
         </div>
       </div>
 
-      <div class="field">
-        <span>Accent</span>
-        <div class="swatches">
-          {#each ACCENTS as c (c)}
-            <button
-              class="swatch"
-              class:on={s.accent === c}
-              style:background={c}
-              aria-label="Accent {c}"
-              aria-pressed={s.accent === c}
-              onclick={() => set({ accent: c })}
-            ></button>
-          {/each}
-          <label class="swatch custom" title="Custom colour" class:on={!ACCENTS.includes(s.accent)}>
-            <input type="color" value={s.accent} onchange={(e) => set({ accent: e.currentTarget.value })} />
-            <Icon name="plus" size={14} />
-          </label>
-        </div>
-      </div>
+      {#if look.animated}
+        <label class="switch">
+          <input type="checkbox" checked={s.effects} onchange={(e) => set({ effects: e.currentTarget.checked })} />
+          <span>Animated effects <small>(background motion, card tilt)</small></span>
+        </label>
+      {/if}
+      <label class="switch">
+        <input type="checkbox" checked={s.previews} onchange={(e) => set({ previews: e.currentTarget.checked })} />
+        <span>Preview links when you rest the pointer on them</span>
+      </label>
 
-      <div class="field">
-        <span>Background</span>
-        <div class="backgrounds">
-          {#each BACKGROUNDS as b (b.id)}
+      {#if look.themes.length > 1}
+        <div class="field">
+          <span>Theme</span>
+          <div class="segmented" role="radiogroup" aria-label="Theme">
+            {#each themes as t (t.id)}
+              <button role="radio" aria-checked={s.theme === t.id} class:on={s.theme === t.id} onclick={() => set({ theme: t.id })}>
+                <Icon name={t.icon} size={15} />
+                {t.label}
+              </button>
+            {/each}
+          </div>
+        </div>
+      {/if}
+
+      {#if !look.accent}
+        <div class="field">
+          <span>Accent</span>
+          <div class="swatches">
+            {#each ACCENTS as c (c)}
+              <button
+                class="swatch"
+                class:on={s.accent === c}
+                style:background={c}
+                aria-label="Accent {c}"
+                aria-pressed={s.accent === c}
+                onclick={() => set({ accent: c })}
+              ></button>
+            {/each}
+            <label class="swatch custom" title="Custom colour" class:on={!ACCENTS.includes(s.accent)}>
+              <input type="color" value={s.accent} onchange={(e) => set({ accent: e.currentTarget.value })} />
+              <Icon name="plus" size={14} />
+            </label>
+          </div>
+        </div>
+      {/if}
+
+      {#if look.customBackground}
+        <div class="field">
+          <span>Background</span>
+          <div class="backgrounds">
+            {#each BACKGROUNDS as b (b.id)}
+              <button
+                class="bg"
+                class:on={s.background === b.id}
+                style:background={b[resolvedTheme]}
+                aria-pressed={s.background === b.id}
+                onclick={() => set({ background: b.id })}
+              >
+                <span>{b.label}</span>
+              </button>
+            {/each}
             <button
-              class="bg"
-              class:on={s.background === b.id}
-              style:background={b[resolvedTheme]}
-              aria-pressed={s.background === b.id}
-              onclick={() => set({ background: b.id })}
+              class="bg image"
+              class:on={s.background === IMAGE_BACKGROUND}
+              style:background-image={s.backgroundImage ? `url("${s.backgroundImage.replace(/"/g, '')}")` : undefined}
+              aria-pressed={s.background === IMAGE_BACKGROUND}
+              onclick={() => set({ background: IMAGE_BACKGROUND })}
             >
-              <span>{b.label}</span>
+              <span>Image</span>
             </button>
-          {/each}
-          <button
-            class="bg image"
-            class:on={s.background === IMAGE_BACKGROUND}
-            style:background-image={s.backgroundImage ? `url("${s.backgroundImage.replace(/"/g, '')}")` : undefined}
-            aria-pressed={s.background === IMAGE_BACKGROUND}
-            onclick={() => set({ background: IMAGE_BACKGROUND })}
-          >
-            <span>Image</span>
-          </button>
+          </div>
         </div>
-      </div>
 
-      {#if s.background === IMAGE_BACKGROUND}
-        <label class="field">
-          <span>Image URL</span>
-          <input
-            class="input"
-            type="url"
-            placeholder="https://images.unsplash.com/…"
-            value={s.backgroundImage}
-            onchange={(e) => set({ backgroundImage: e.currentTarget.value.trim() })}
-          />
-        </label>
-        <label class="field">
-          <span>Dim image · {Math.round(s.dim * 100)}%</span>
-          <input type="range" min="0" max="0.8" step="0.05" value={s.dim} oninput={(e) => set({ dim: +e.currentTarget.value })} />
-        </label>
+        {#if s.background === IMAGE_BACKGROUND}
+          <label class="field">
+            <span>Image URL</span>
+            <input
+              class="input"
+              type="url"
+              placeholder="https://images.unsplash.com/…"
+              value={s.backgroundImage}
+              onchange={(e) => set({ backgroundImage: e.currentTarget.value.trim() })}
+            />
+          </label>
+          <label class="field">
+            <span>Dim image · {Math.round(s.dim * 100)}%</span>
+            <input type="range" min="0" max="0.8" step="0.05" value={s.dim} oninput={(e) => set({ dim: +e.currentTarget.value })} />
+          </label>
+        {/if}
       {/if}
 
       <label class="field">
@@ -375,6 +407,45 @@
     inset: 0;
     opacity: 0;
     cursor: pointer;
+  }
+  .styles {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+  .style {
+    display: grid;
+    align-content: start;
+    gap: 3px;
+    padding: 6px 6px 10px;
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    background: transparent;
+    text-align: left;
+    transition: border-color 0.15s;
+  }
+  .style:hover {
+    border-color: color-mix(in oklab, var(--accent) 50%, var(--border-strong));
+  }
+  .style.on {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .style-swatch {
+    height: 64px;
+    margin-bottom: 5px;
+    border-radius: 8px;
+  }
+  .style strong {
+    padding: 0 4px;
+    font-size: 13px;
+  }
+  .style small {
+    padding: 0 4px;
+    font-size: 11.5px;
+  }
+  .switch small {
+    color: var(--text-faint);
   }
   .backgrounds {
     display: grid;

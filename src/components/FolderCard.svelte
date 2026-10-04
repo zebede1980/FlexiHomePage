@@ -3,17 +3,21 @@
   import Icon from './Icon.svelte';
   import Menu from './Menu.svelte';
   import { dropInto, requestDelete } from '../lib/actions';
+  import { decode, tilt } from '../lib/fx/pointer';
   import { openInBackgroundTabs } from '../lib/links';
   import { settings } from '../lib/settings-store.svelte';
   import { collectLinks, countLinks, pathKey, type BNode } from '../lib/tree';
   import { DRAG_MIME, acceptsDrag, clearHint, drag, endDrag, hint, isDragging, openDialog, setHint, startDrag } from '../lib/ui.svelte';
 
-  let { node, depth, path }: { node: BNode; depth: number; path: string[] } = $props();
+  let { node, depth, path, index = 0 }: { node: BNode; depth: number; path: string[]; index?: number } = $props();
 
   let el: HTMLElement;
   const key = $derived(pathKey(path));
   const collapsed = $derived(settings.value.collapsed.includes(key));
   const total = $derived(countLinks(node));
+  const hud = $derived(settings.value.style === 'constellation');
+  const fx = $derived(hud && settings.value.effects);
+  const pad2 = (n: number) => String(n).padStart(2, '0');
 
   function toggle() {
     const list = settings.value.collapsed.filter((k) => k !== key);
@@ -67,17 +71,27 @@
   class:drop-before={hint.id === node.id && hint.edge === 'before'}
   class:drop-after={hint.id === node.id && hint.edge === 'after'}
   aria-label={node.title}
+  style:--i={index}
+  use:tilt={fx}
   {ondragover}
   ondragleave={onleave}
   {ondrop}
 >
+  {#if hud}
+    <i class="corner tl"></i><i class="corner tr"></i><i class="corner bl"></i><i class="corner br"></i>
+    <div class="glare"></div>
+  {/if}
   <!-- Dragging is a pointer shortcut; keyboard users move things via the Edit dialog's folder picker. -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <header draggable="true" {ondragstart} ondragend={endDrag}>
     <button class="title" aria-expanded={!collapsed} onclick={toggle} title={collapsed ? 'Expand' : 'Collapse'}>
       <span class="chev" class:open={!collapsed}><Icon name="chevron-right" size={14} /></span>
-      <h2>{node.title || 'Untitled folder'}</h2>
-      <span class="count">{total}</span>
+      {#if hud}<span class="idx">{pad2(index + 1)}</span>{/if}
+      <h2>
+        <span class="sr-only">{node.title || 'Untitled folder'}</span>
+        <span aria-hidden="true" use:decode={{ text: node.title || 'Untitled folder', enabled: fx, trigger: '[data-card-id]' }}></span>
+      </h2>
+      <span class="count">{hud ? `[${pad2(total)}]` : total}</span>
     </button>
     <div class="tools">
       <span class="icon-btn grip" title="Drag to move this group" aria-hidden="true"><Icon name="grip" size={16} /></span>
@@ -200,5 +214,133 @@
   }
   .body {
     padding: 2px 0 4px;
+  }
+
+  /* ---- Constellation: HUD panel ---- */
+  :global([data-style='constellation']) .card {
+    padding: 6px 6px 8px;
+    transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+    transition:
+      transform 0.6s var(--ease),
+      border-color 0.3s,
+      box-shadow 0.3s,
+      background 0.15s,
+      opacity 0.15s;
+    animation: panel-in 0.7s var(--ease) backwards;
+    animation-delay: calc(0.1s + var(--i, 0) * 0.07s);
+  }
+  :global([data-style='constellation']) .card:global(.tilting) {
+    transition:
+      transform 0.12s linear,
+      border-color 0.3s,
+      box-shadow 0.3s;
+  }
+  /* `backwards`, not `both`: a clip-path left behind would cut off the corners and glow. */
+  @keyframes panel-in {
+    from {
+      opacity: 0;
+      clip-path: inset(0 0 100% 0);
+    }
+    to {
+      clip-path: inset(-12px);
+    }
+  }
+  :global([data-style='constellation']) .card:hover {
+    border-color: var(--border-strong);
+    box-shadow:
+      0 30px 60px rgba(0, 0, 0, 0.5),
+      0 0 40px color-mix(in oklab, var(--accent) 7%, transparent);
+  }
+  .corner {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--accent);
+    opacity: 0.55;
+    pointer-events: none;
+    transition:
+      inset 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+      opacity 0.3s;
+  }
+  .tl {
+    top: -1px;
+    left: -1px;
+    border-right: 0;
+    border-bottom: 0;
+  }
+  .tr {
+    top: -1px;
+    right: -1px;
+    border-left: 0;
+    border-bottom: 0;
+  }
+  .bl {
+    bottom: -1px;
+    left: -1px;
+    border-right: 0;
+    border-top: 0;
+  }
+  .br {
+    bottom: -1px;
+    right: -1px;
+    border-left: 0;
+    border-top: 0;
+  }
+  .card:hover .corner,
+  .card.drop-inside .corner {
+    opacity: 1;
+  }
+  .card:hover .tl {
+    top: -6px;
+    left: -6px;
+  }
+  .card:hover .tr {
+    top: -6px;
+    right: -6px;
+  }
+  .card:hover .bl {
+    bottom: -6px;
+    left: -6px;
+  }
+  .card:hover .br {
+    bottom: -6px;
+    right: -6px;
+  }
+  .glare {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    background: radial-gradient(400px circle at var(--gx, 50%) var(--gy, 0%), color-mix(in oklab, var(--accent) 10%, transparent), transparent 50%);
+  }
+  .card:hover .glare {
+    opacity: 1;
+  }
+  :global([data-style='constellation']) header {
+    margin-bottom: 4px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  :global([data-style='constellation']) .chev {
+    color: var(--accent);
+  }
+  .idx {
+    font: 500 10px var(--font-mono);
+    color: var(--text-faint);
+  }
+  :global([data-style='constellation']) h2 {
+    flex: 1;
+    font: 600 12.5px/1 var(--font-mono);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  :global([data-style='constellation']) .count {
+    padding: 0;
+    background: none;
+    color: var(--text-faint);
+    font: 500 11px var(--font-mono);
   }
 </style>

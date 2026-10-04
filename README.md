@@ -13,8 +13,11 @@ your real browser bookmarks.
   stays in step; the card arrangement is a synced setting.
 - **Search.** Start typing anywhere: matches bookmarks by name, site and folder,
   goes straight to typed addresses, or searches the web.
-- **Looks.** Light/dark/auto theme, accent colour, gradient or image
-  backgrounds, card width and density.
+- **Looks.** Pick a style: *Classic* (glass cards, light/dark/auto theme,
+  accent colour, gradient or image backgrounds) or *Constellation* (a star
+  field that reacts to the pointer, HUD-style panels). Rest the pointer on a
+  link for a preview. Card width and density work in every style; animation
+  can be switched off and respects the system's reduce-motion setting.
 - **Syncs between machines** via Vivaldi Sync, without a server (see below).
 
 ## Install in Vivaldi
@@ -84,6 +87,10 @@ src/components/    cards, rows, search, settings drawer, dialogs, toasts
 src/lib/tree.ts    pure bookmark-tree helpers (paths, search, hidden folders)
 src/lib/settings*.ts         settings schema and the bookmark-backed sync store
 src/lib/bookmarks.svelte.ts  live bookmark tree + mutations
+src/lib/styles.ts  style registry; palettes in src/styles/, flourishes as
+                   :global([data-style=…]) rules in each component
+src/lib/fx/        canvas backgrounds and pointer effects (Svelte actions)
+prototypes/        standalone design prototypes (serve with `npm run dev`)
 ```
 
 ## Roadmap

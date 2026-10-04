@@ -1,8 +1,10 @@
 <script lang="ts">
+  import Backdrop from './components/Backdrop.svelte';
   import Clock from './components/Clock.svelte';
   import Dialogs from './components/Dialogs.svelte';
   import FolderCard from './components/FolderCard.svelte';
   import Icon from './components/Icon.svelte';
+  import LinkPreview from './components/LinkPreview.svelte';
   import PinnedRow from './components/PinnedRow.svelte';
   import SearchBar from './components/SearchBar.svelte';
   import SettingsPanel from './components/SettingsPanel.svelte';
@@ -10,17 +12,23 @@
   import { IMAGE_BACKGROUND, backgroundCss } from './lib/backgrounds';
   import { bookmarks } from './lib/bookmarks.svelte';
   import { settings } from './lib/settings-store.svelte';
+  import { styleDef } from './lib/styles';
   import { arrangeColumns, moveBetweenColumns } from './lib/layout';
   import { collectLinks, depthOf, isFolder, pathKey, pathTo, resolveHome, visibleChildren, type BNode } from './lib/tree';
   import { clearHint, drag, endDrag, hint, openDialog, panel, setHint } from './lib/ui.svelte';
 
   const s = $derived(settings.value);
+  const look = $derived(styleDef(s.style));
 
   // ---- theme ----
   const media = window.matchMedia('(prefers-color-scheme: dark)');
   let systemDark = $state(media.matches);
   media.addEventListener('change', (e) => (systemDark = e.matches));
-  const theme = $derived<'light' | 'dark'>(s.theme === 'auto' ? (systemDark ? 'dark' : 'light') : s.theme);
+  const theme = $derived.by<'light' | 'dark'>(() => {
+    if (look.themes.length === 1) return look.themes[0];
+    return s.theme === 'auto' ? (systemDark ? 'dark' : 'light') : s.theme;
+  });
+  const accent = $derived(look.accent ?? s.accent);
 
   /** Pick black or white text for the accent so buttons stay readable with pale accents. */
   function inkFor(hex: string): string {
@@ -36,9 +44,10 @@
     const root = document.documentElement;
     root.style.background = ''; // boot.js's pre-paint colour; the stylesheet takes over now
     root.dataset.theme = theme;
-    root.dataset.ink = s.background === IMAGE_BACKGROUND && s.backgroundImage ? 'light' : '';
-    root.style.setProperty('--accent', s.accent);
-    root.style.setProperty('--accent-ink', inkFor(s.accent));
+    root.dataset.style = look.id;
+    root.dataset.ink = look.customBackground && s.background === IMAGE_BACKGROUND && s.backgroundImage ? 'light' : '';
+    root.style.setProperty('--accent', accent);
+    root.style.setProperty('--accent-ink', inkFor(accent));
     root.style.setProperty('--card-w', `${s.cardWidth}px`);
     root.style.setProperty('--row-h', s.density === 'compact' ? '28px' : '32px');
   });
@@ -133,7 +142,7 @@
   </div>
 {/snippet}
 
-<div class="bg" style:background aria-hidden="true"></div>
+<Backdrop style={look.id} css={background} animate={s.effects} />
 
 <div class="toolbar">
   {#if home}
@@ -188,7 +197,7 @@
           <div class="column" bind:this={columnEls[ci]} class:drop-empty={hint.id === `column:${ci}`}>
             {#each column as card (card.id)}
               <svelte:boundary onerror={(e) => console.error('[FlexiHome] card', card.title, e)}>
-                <FolderCard node={card} depth={homeDepth + 1} path={[...homePath, card.title]} />
+                <FolderCard node={card} depth={homeDepth + 1} path={[...homePath, card.title]} index={cards.indexOf(card)} />
                 {#snippet failed(error, reset)}
                   {@render crashed(`“${card.title}”`, error, reset)}
                 {/snippet}
@@ -214,17 +223,11 @@
 </main>
 
 <SettingsPanel resolvedTheme={theme} />
+{#if s.previews}<LinkPreview />{/if}
 <Dialogs />
 <Toasts />
 
 <style>
-  .bg {
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    background-attachment: fixed;
-    transition: background 0.4s;
-  }
   main {
     width: min(1440px, 100%);
     margin: 0 auto;
@@ -286,6 +289,23 @@
     width: 36px;
     padding: 0;
     justify-content: center;
+  }
+  :global([data-style='constellation']) .tb-btn {
+    height: 34px;
+    border-radius: 8px;
+    color: var(--text-muted);
+    font: 500 11px var(--font-mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    transition: color 0.2s, border-color 0.2s, box-shadow 0.2s;
+  }
+  :global([data-style='constellation']) .tb-btn:hover {
+    color: var(--accent);
+    border-color: color-mix(in oklab, var(--accent) 50%, transparent);
+    box-shadow: 0 0 18px color-mix(in oklab, var(--accent) 20%, transparent);
+  }
+  :global([data-style='constellation']) .tb-btn.icon-only {
+    width: 34px;
   }
   .notice {
     justify-self: center;

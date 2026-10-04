@@ -28,6 +28,12 @@ describe('normalizeSettings', () => {
     expect(s).not.toHaveProperty('unknownFutureField');
   });
 
+  it('accepts known styles only, so an older build never sees a style it lacks', () => {
+    expect(normalizeSettings({ style: 'constellation' }).style).toBe('constellation');
+    expect(normalizeSettings({ style: 'vaporwave' }).style).toBe(DEFAULT_SETTINGS.style);
+    expect(normalizeSettings({ effects: false, previews: 'yes' })).toMatchObject({ effects: false, previews: true });
+  });
+
   it('distinguishes an explicit null root (automatic) from a missing one', () => {
     expect(normalizeSettings({ rootPath: null }).rootPath).toBeNull();
     expect(normalizeSettings({ rootPath: 'x' }).rootPath).toBe(DEFAULT_SETTINGS.rootPath);

@@ -85,7 +85,11 @@
 
 <div class="search" class:open={focused && results.length > 0}>
   <label class="bar glass">
-    <Icon name="search" size={18} />
+    {#if settings.value.style === 'constellation'}
+      <span class="prompt" aria-hidden="true">&gt;</span>
+    {:else}
+      <Icon name="search" size={18} />
+    {/if}
     <span class="sr-only">Search bookmarks or the web</span>
     <input
       bind:this={input}
@@ -242,5 +246,51 @@
   }
   .enter {
     margin: 0;
+  }
+
+  /* ---- Constellation: terminal prompt ---- */
+  .prompt {
+    font: 600 16px var(--font-mono);
+    color: var(--accent);
+  }
+  :global([data-style='constellation']) .bar {
+    border-radius: 12px;
+    background: var(--surface);
+  }
+  :global([data-style='constellation']) .bar:focus-within {
+    border-color: color-mix(in oklab, var(--accent) 60%, transparent);
+    box-shadow:
+      0 0 0 4px color-mix(in oklab, var(--accent) 8%, transparent),
+      0 0 40px color-mix(in oklab, var(--accent) 18%, transparent);
+  }
+  :global([data-style='constellation']) .open .bar {
+    border-radius: 12px 12px 0 0;
+  }
+  :global([data-style='constellation']) input {
+    font: 15px var(--font-mono);
+    caret-color: var(--accent);
+  }
+  :global([data-style='constellation']) input::placeholder {
+    text-transform: lowercase;
+  }
+  :global([data-style='constellation']) kbd {
+    border-color: var(--border);
+    font-family: var(--font-mono);
+  }
+  :global([data-style='constellation']) .results {
+    border-radius: 0 0 12px 12px;
+    background: var(--surface-strong);
+    backdrop-filter: blur(14px);
+  }
+  :global([data-style='constellation']) li {
+    border-radius: 4px;
+  }
+  :global([data-style='constellation']) li.active {
+    background: linear-gradient(90deg, color-mix(in oklab, var(--accent) 16%, transparent), transparent);
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+  :global([data-style='constellation']) .meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
   }
 </style>

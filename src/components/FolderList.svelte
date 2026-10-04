@@ -117,7 +117,7 @@
         {/if}
       </div>
     {:else}
-      <LinkRow node={child} />
+      <LinkRow node={child} {path} />
     {/if}
   {/each}
 
@@ -267,5 +267,21 @@
   }
   .more:hover {
     background: var(--accent-soft);
+  }
+
+  :global([data-style='constellation']) .chev {
+    color: var(--accent);
+  }
+  :global([data-style='constellation']) .label {
+    font-weight: 600;
+  }
+  :global([data-style='constellation']) .count,
+  :global([data-style='constellation']) .empty,
+  :global([data-style='constellation']) .more {
+    font-family: var(--font-mono);
+  }
+  :global([data-style='constellation']) .nested {
+    border-left-style: dashed;
+    border-left-color: var(--border);
   }
 </style>

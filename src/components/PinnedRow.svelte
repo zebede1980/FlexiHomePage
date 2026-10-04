@@ -2,6 +2,8 @@
   import Favicon from './Favicon.svelte';
   import Icon from './Icon.svelte';
   import { dropInto, isInternalUrl, navigate, requestDelete } from '../lib/actions';
+  import { brandColor } from '../lib/brand-color.svelte';
+  import { preview } from '../lib/preview.svelte';
   import { settings } from '../lib/settings-store.svelte';
   import { hostOf, type BNode } from '../lib/tree';
   import { DRAG_MIME, acceptsDrag, clearHint, drag, dropEdge, endDrag, hint, isDragging, openDialog, setHint, startDrag } from '../lib/ui.svelte';
@@ -71,6 +73,7 @@
     {@const label = node.title || hostOf(node.url)}
     <div
       class="tile-wrap"
+      style:--c={brandColor(node.url!)}
       class:dragging={isDragging(node.id)}
       class:drop-before={hint.id === node.id && hint.edge === 'before'}
       class:drop-after={hint.id === node.id && hint.edge === 'after'}
@@ -83,7 +86,9 @@
         href={node.url}
         target={newTab ? '_blank' : undefined}
         rel="noopener"
-        title={`${label}\n${node.url}`}
+        title={settings.value.previews ? undefined : `${label}\n${node.url}`}
+        onpointerenter={(e) => settings.value.previews && preview.enter({ node, path: [home.title], el: e.currentTarget })}
+        onpointerleave={() => preview.leave()}
         onclick={(e) => onclick(e, node.url!)}
         ondragstart={(e) => ondragstart(e, node)}
         ondragend={endDrag}
@@ -240,5 +245,94 @@
   }
   .tile-wrap.drop-after::after {
     right: -4px;
+  }
+
+  /* ---- Constellation: orbs with an orbit ring and a satellite on hover ---- */
+  :global([data-style='constellation']) .pinned {
+    gap: 14px;
+  }
+  :global([data-style='constellation']) .tile:hover {
+    background: none;
+  }
+  :global([data-style='constellation']) .icon {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.12), rgba(8, 13, 28, 0.9) 70%);
+    transition:
+      border-color 0.3s,
+      box-shadow 0.3s,
+      scale 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  :global([data-style='constellation']) .icon::before {
+    content: '';
+    position: absolute;
+    inset: -7px;
+    border-radius: 50%;
+    border: 1px dashed var(--c);
+    opacity: 0;
+    scale: 0.8;
+    transition:
+      opacity 0.3s,
+      scale 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    animation: orbit 6s linear infinite paused;
+  }
+  :global([data-style='constellation']) .icon::after {
+    content: '';
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--c);
+    box-shadow: 0 0 10px var(--c);
+    offset-path: circle(37px at 50% 50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    animation: satellite 2.4s linear infinite paused;
+  }
+  @keyframes orbit {
+    to {
+      rotate: 360deg;
+    }
+  }
+  @keyframes satellite {
+    to {
+      offset-distance: 100%;
+    }
+  }
+  :global([data-style='constellation']) .tile:hover .icon {
+    translate: none;
+    transform: none;
+    scale: 1.06;
+    border-color: var(--c);
+    box-shadow:
+      0 0 24px color-mix(in oklab, var(--c) 50%, transparent),
+      inset 0 0 18px color-mix(in oklab, var(--c) 30%, transparent);
+  }
+  /* Only spin while visible: six idle infinite animations would keep the compositor busy. */
+  :global([data-style='constellation']) .tile:hover .icon::before {
+    opacity: 0.7;
+    scale: 1;
+    animation-play-state: running;
+  }
+  :global([data-style='constellation']) .tile:hover .icon::after {
+    opacity: 1;
+    animation-play-state: running;
+  }
+  :global([data-style='constellation']) .label {
+    font: 500 11px var(--font-mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    text-shadow: none;
+    transition: color 0.2s;
+  }
+  :global([data-style='constellation']) .tile:hover .label {
+    color: var(--text);
+  }
+  :global([data-style='constellation']) .tile-wrap.drop-before::before,
+  :global([data-style='constellation']) .tile-wrap.drop-after::after {
+    height: 60px;
   }
 </style>

@@ -15,10 +15,18 @@
   });
 
   const s = $derived(settings.value);
+  const hud = $derived(s.style === 'constellation');
   const time = $derived(
     now.toLocaleTimeString(undefined, { hour: s.clock24h ? '2-digit' : 'numeric', minute: '2-digit', hour12: !s.clock24h }),
   );
-  const date = $derived(now.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' }));
+  /** Split at the first separator so the HUD style can blink it. */
+  const timeParts = $derived(time.match(/^(\d+)([:.])(.*)$/));
+  const date = $derived(
+    now.toLocaleDateString(
+      undefined,
+      hud ? { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' } : { weekday: 'long', day: 'numeric', month: 'long' },
+    ),
+  );
   const greeting = $derived.by(() => {
     const h = now.getHours();
     const part = h < 5 ? 'Good night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
@@ -29,11 +37,13 @@
 {#if s.showClock || s.showGreeting}
   <div class="clock">
     {#if s.showClock}
-      <time class="time" datetime={now.toISOString()}>{time}</time>
+      <time class="time" datetime={now.toISOString()}>
+        {#if hud && timeParts}{timeParts[1]}<span class="colon">{timeParts[2]}</span>{timeParts[3]}{:else}{time}{/if}
+      </time>
     {/if}
     <p class="sub">
       {#if s.showGreeting}<span>{greeting}</span>{/if}
-      {#if s.showGreeting && s.showClock}<span class="dot" aria-hidden="true">·</span>{/if}
+      {#if s.showGreeting && s.showClock}<span class="dot" aria-hidden="true">{hud ? '//' : '·'}</span>{/if}
       {#if s.showClock}<span>{date}</span>{/if}
     </p>
   </div>
@@ -68,5 +78,45 @@
   }
   .dot {
     opacity: 0.6;
+  }
+
+  /* ---- Constellation ---- */
+  :global([data-style='constellation']) .clock {
+    gap: 12px;
+  }
+  :global([data-style='constellation']) .time {
+    font-weight: 250;
+    letter-spacing: -0.02em;
+    text-shadow:
+      0 0 30px color-mix(in oklab, var(--accent) 45%, transparent),
+      0 0 80px color-mix(in oklab, var(--accent) 18%, transparent);
+    animation: boot 1s var(--ease) both;
+  }
+  @keyframes boot {
+    from {
+      opacity: 0;
+      letter-spacing: 0.3em;
+      filter: blur(8px);
+    }
+  }
+  .colon {
+    color: var(--accent);
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink {
+    50% {
+      opacity: 0.25;
+    }
+  }
+  /* Date first, then greeting: "SUN, 04 OCT 2026 // GOOD MORNING" */
+  :global([data-style='constellation']) .sub {
+    flex-direction: row-reverse;
+    font: 500 12px/1 var(--font-mono);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+  :global([data-style='constellation']) .dot {
+    color: var(--accent);
+    opacity: 1;
   }
 </style>

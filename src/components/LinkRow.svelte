@@ -2,16 +2,20 @@
   import Favicon from './Favicon.svelte';
   import Icon from './Icon.svelte';
   import { dropInto, isInternalUrl, navigate, requestDelete } from '../lib/actions';
+  import { brandColor } from '../lib/brand-color.svelte';
+  import { preview } from '../lib/preview.svelte';
   import { settings } from '../lib/settings-store.svelte';
   import { hostOf, type BNode } from '../lib/tree';
   import { DRAG_MIME, acceptsDrag, clearHint, drag, dropEdge, endDrag, hint, isDragging, openDialog, setHint, startDrag } from '../lib/ui.svelte';
 
-  let { node }: { node: BNode } = $props();
+  /** `path` is the containing folders' titles, shown in the hover preview. */
+  let { node, path = [] }: { node: BNode; path?: string[] } = $props();
 
   let el: HTMLDivElement;
   const url = $derived(node.url ?? '');
   const label = $derived(node.title || hostOf(url) || url);
   const newTab = $derived(settings.value.openInNewTab);
+  const color = $derived(brandColor(url));
 
   function onclick(e: MouseEvent) {
     // Browser-internal pages (vivaldi://…) can't be opened from a plain link.
@@ -51,6 +55,7 @@
 <div
   bind:this={el}
   class="row"
+  style:--c={color}
   class:dragging={isDragging(node.id)}
   class:drop-before={hint.id === node.id && hint.edge === 'before'}
   class:drop-after={hint.id === node.id && hint.edge === 'after'}
@@ -64,7 +69,9 @@
     href={url}
     target={newTab ? '_blank' : undefined}
     rel="noopener"
-    title={`${label}\n${url}`}
+    title={settings.value.previews ? undefined : `${label}\n${url}`}
+    onpointerenter={(e) => settings.value.previews && preview.enter({ node, path, el: e.currentTarget })}
+    onpointerleave={() => preview.leave()}
     {onclick}
     {ondragstart}
     ondragend={endDrag}
@@ -160,5 +167,70 @@
   }
   :global(body.is-dragging) .actions {
     visibility: hidden; /* not display:none — the drag handle lives in here */
+  }
+
+  /* ---- Constellation: accent rail, scan sweep, favicon glow ---- */
+  :global([data-style='constellation']) .row {
+    border-radius: 0;
+  }
+  :global([data-style='constellation']) .row:hover {
+    background: linear-gradient(90deg, color-mix(in oklab, var(--c) 13%, transparent), transparent 85%);
+  }
+  :global([data-style='constellation']) .link {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0;
+    color: color-mix(in oklab, var(--text) 88%, transparent);
+    transition: color 0.2s;
+  }
+  :global([data-style='constellation']) .link::before,
+  :global([data-style='constellation']) .link::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+  }
+  :global([data-style='constellation']) .link::before {
+    left: 0;
+    top: 7px;
+    bottom: 7px;
+    width: 2px;
+    background: var(--c);
+    box-shadow: 0 0 10px var(--c);
+    scale: 1 0;
+    transition: scale 0.25s var(--ease);
+  }
+  :global([data-style='constellation']) .link::after {
+    inset: 0;
+    background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--c) 18%, transparent), transparent);
+    translate: -100% 0;
+  }
+  :global([data-style='constellation']) .row:hover .link {
+    color: var(--text);
+  }
+  :global([data-style='constellation']) .row:hover .link::before {
+    scale: 1 1;
+  }
+  :global([data-style='constellation']) .row:hover .link::after {
+    animation: sweep 0.6s var(--ease);
+  }
+  @keyframes sweep {
+    to {
+      translate: 100% 0;
+    }
+  }
+  :global([data-style='constellation']) .link :global(img) {
+    transition:
+      filter 0.3s,
+      scale 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  :global([data-style='constellation']) .row:hover .link :global(img) {
+    scale: 1.15;
+    filter: drop-shadow(0 0 6px var(--c));
+  }
+  :global([data-style='constellation']) .label {
+    transition: translate 0.3s var(--ease);
+  }
+  :global([data-style='constellation']) .row:hover .label {
+    translate: 4px 0;
   }
 </style>

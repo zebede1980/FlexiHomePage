@@ -1,0 +1,56 @@
+/* Constellation: palette and page-level rules. Component flourishes live in
+   each component as :global([data-style='constellation']) rules. The extra
+   [data-theme] makes these beat the light/dark tokens in app.css. */
+
+:root[data-style='constellation'][data-theme] {
+  color-scheme: dark;
+  --accent-2: #ff4fd8;
+  --bg: #040814;
+  --surface: rgba(8, 13, 28, 0.74);
+  --surface-strong: rgba(10, 16, 32, 0.92);
+  --surface-solid: #0a1122;
+  --hover: rgba(94, 234, 212, 0.07);
+  --active: rgba(94, 234, 212, 0.13);
+  --text: #e6f1ff;
+  --text-muted: rgba(200, 220, 245, 0.64);
+  --text-faint: rgba(200, 220, 245, 0.4);
+  --ink: #e6f1ff;
+  --ink-muted: rgba(200, 220, 245, 0.64);
+  --border: rgba(94, 234, 212, 0.15);
+  --border-strong: rgba(94, 234, 212, 0.3);
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.02) inset, 0 16px 40px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 0 0 1px rgba(0, 0, 0, 0.5), 0 30px 70px rgba(0, 0, 0, 0.6);
+  --danger: #ff6b8b;
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 6px;
+}
+
+/* Faint coloured haze behind the star canvas. */
+[data-style='constellation'] canvas.bg {
+  background:
+    radial-gradient(60% 50% at 50% 0%, rgba(94, 234, 212, 0.09), transparent 70%),
+    radial-gradient(50% 40% at 90% 100%, rgba(255, 79, 216, 0.08), transparent 70%),
+    var(--bg);
+}
+
+[data-style='constellation'] .glass {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+[data-style='constellation'] .btn {
+  border-radius: var(--radius);
+  font: 600 11.5px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+[data-style='constellation'] .input {
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+[data-style='constellation'] ::selection {
+  background: rgba(255, 79, 216, 0.35);
+}

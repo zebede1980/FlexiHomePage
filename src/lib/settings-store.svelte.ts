@@ -32,7 +32,7 @@ function readLocal(): Settings {
 function writeLocal(s: Settings) {
   try {
     localStorage.setItem(LS_SETTINGS, JSON.stringify(s));
-    localStorage.setItem(LS_BOOT, JSON.stringify({ theme: s.theme }));
+    localStorage.setItem(LS_BOOT, JSON.stringify({ theme: s.theme, style: s.style }));
   } catch {
     // Storage full or blocked: the bookmark copy still holds the settings.
   }

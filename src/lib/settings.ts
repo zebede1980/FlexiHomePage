@@ -4,6 +4,9 @@
 
 export type ThemeMode = 'auto' | 'light' | 'dark';
 export type Density = 'comfortable' | 'compact';
+export type StyleId = 'classic' | 'constellation';
+
+export const STYLE_IDS: StyleId[] = ['classic', 'constellation'];
 
 export interface Settings {
   v: 1;
@@ -12,6 +15,12 @@ export interface Settings {
   /** Folder titles from the top level down to the home folder. null = pick automatically. */
   rootPath: string[] | null;
   theme: ThemeMode;
+  /** Overall look: layout flourishes, palette and background effect. See lib/styles.ts. */
+  style: StyleId;
+  /** Animated backgrounds and pointer effects (tilt etc.) for styles that have them. */
+  effects: boolean;
+  /** Rich preview card when resting the pointer on a link. */
+  previews: boolean;
   accent: string;
   background: string;
   backgroundImage: string;
@@ -51,6 +60,9 @@ export const DEFAULT_SETTINGS: Settings = {
   updatedAt: 0,
   rootPath: null,
   theme: 'auto',
+  style: 'classic',
+  effects: true,
+  previews: true,
   accent: ACCENTS[0],
   background: 'aurora',
   backgroundImage: '',
@@ -86,6 +98,9 @@ export function normalizeSettings(raw: unknown): Settings {
     updatedAt: isNum(r.updatedAt) ? r.updatedAt : 0,
     rootPath: r.rootPath === null ? null : (strArr(r.rootPath) ?? d.rootPath),
     theme: r.theme === 'light' || r.theme === 'dark' || r.theme === 'auto' ? r.theme : d.theme,
+    style: STYLE_IDS.includes(r.style as StyleId) ? (r.style as StyleId) : d.style,
+    effects: isBool(r.effects) ? r.effects : d.effects,
+    previews: isBool(r.previews) ? r.previews : d.previews,
     accent: isStr(r.accent) && /^#[0-9a-f]{6}$/i.test(r.accent) ? r.accent : d.accent,
     background: isStr(r.background) && r.background ? r.background : d.background,
     backgroundImage: isStr(r.backgroundImage) ? r.backgroundImage : d.backgroundImage,
