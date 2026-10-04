@@ -122,7 +122,7 @@
   {/each}
 
   {#if items.length === 0}
-    <p class="empty">Empty â drag bookmarks here</p>
+    <p class="empty">Empty — drag bookmarks here</p>
   {/if}
 
   {#if remaining > 0}

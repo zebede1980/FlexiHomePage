@@ -14,7 +14,7 @@
   const newTab = $derived(settings.value.openInNewTab);
 
   function onclick(e: MouseEvent) {
-    // Browser-internal pages (vivaldi://â¦) can't be opened from a plain link.
+    // Browser-internal pages (vivaldi://…) can't be opened from a plain link.
     if (isInternalUrl(url)) {
       e.preventDefault();
       navigate(url, newTab || e.ctrlKey || e.metaKey || e.button === 1);
