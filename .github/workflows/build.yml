@@ -1,0 +1,54 @@
+# Builds the extension on every push to main and commits the result to
+# extension/, so a machine that only uses FlexiHome can `git pull` and reload
+# without needing Node. Local builds go to the ignored dist/ and never touch it.
+name: Build extension
+
+on:
+  push:
+    branches: [main]
+    # The commit this job makes only touches extension/, so it doesn't re-trigger.
+    # (Pushes made with GITHUB_TOKEN don't start workflows anyway.)
+    paths-ignore: ['extension/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# Queue rather than overlap, so two quick pushes can't race to commit.
+concurrency:
+  group: build-extension
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # The branch tip, not the triggering commit: a queued run then builds
+      # the latest source and can push without a rebase.
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+
+      - name: Commit extension/
+        run: |
+          rm -rf extension
+          cp -r dist extension
+          git add -A extension
+          if git diff --cached --quiet; then
+            echo "extension/ is already up to date"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: build extension from ${GITHUB_SHA::7}"
+          git push
