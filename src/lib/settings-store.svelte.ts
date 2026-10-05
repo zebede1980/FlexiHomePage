@@ -10,7 +10,7 @@ import {
   normalizeSettings,
   type Settings,
 } from './settings';
-import { SETTINGS_FOLDER_TITLE, isFolder, type BNode } from './tree';
+import { SETTINGS_FOLDER_TITLE, isFolder, otherBookmarksId, type BNode } from './tree';
 
 const LS_SETTINGS = 'flexihome:settings';
 /** Tiny snapshot read by public/boot.js before any CSS loads, to avoid a theme flash. */
@@ -60,12 +60,6 @@ export function findSettingsFolders(root: BNode): Found[] {
   };
   walk(root);
   return out;
-}
-
-/** "Other bookmarks" (id 2 in every Chromium browser) keeps the folder off the bookmark bar. */
-function settingsParent(root: BNode): string {
-  const top = root.children ?? [];
-  return (top.find((c) => c.id === '2') ?? top[top.length - 1] ?? root).id;
 }
 
 export class SettingsStore {
@@ -152,7 +146,7 @@ export class SettingsStore {
         const existing = findSettingsFolders(root)[0];
         const folder =
           existing?.folder ??
-          (await chrome.bookmarks.create({ parentId: settingsParent(root), title: SETTINGS_FOLDER_TITLE }));
+          (await chrome.bookmarks.create({ parentId: otherBookmarksId(root), title: SETTINGS_FOLDER_TITLE }));
         const bookmark = existing?.bookmark
           ? await chrome.bookmarks.update(existing.bookmark.id, { url })
           : await chrome.bookmarks.create({ parentId: folder.id, title: SETTINGS_BOOKMARK_TITLE, url });

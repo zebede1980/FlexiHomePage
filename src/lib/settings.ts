@@ -41,8 +41,10 @@ export interface Settings {
   collapsed: string[];
   /** pathKey()s of nested folders the user expanded. */
   expanded: string[];
-  /** Top-level cards by column, each a list of pathKey()s from top to bottom. */
+  /** Top-level cards by column, each a list of pathKey()s (or TODO_CARD_KEY) from top to bottom. */
   cardLayout: string[][];
+  /** The to-do list card. Its items sync separately, see lib/todos.ts. */
+  showTodos: boolean;
 }
 
 export const SEARCH_ENGINES: { label: string; url: string }[] = [
@@ -82,6 +84,7 @@ export const DEFAULT_SETTINGS: Settings = {
   collapsed: [],
   expanded: [],
   cardLayout: [],
+  showTodos: true,
 };
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
@@ -120,6 +123,7 @@ export function normalizeSettings(raw: unknown): Settings {
     collapsed: strArr(r.collapsed) ?? d.collapsed,
     expanded: strArr(r.expanded) ?? d.expanded,
     cardLayout: strArr2(r.cardLayout) ?? d.cardLayout,
+    showTodos: isBool(r.showTodos) ? r.showTodos : d.showTodos,
   };
 }
 

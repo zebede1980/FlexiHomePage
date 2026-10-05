@@ -9,12 +9,13 @@
   import SearchBar from './components/SearchBar.svelte';
   import SettingsPanel from './components/SettingsPanel.svelte';
   import Toasts from './components/Toasts.svelte';
+  import TodoCard from './components/TodoCard.svelte';
   import { IMAGE_BACKGROUND, backgroundCss } from './lib/backgrounds';
   import { bookmarks } from './lib/bookmarks.svelte';
   import { settings } from './lib/settings-store.svelte';
   import { styleDef } from './lib/styles';
   import { spotlight } from './lib/fx/pointer';
-  import { arrangeColumns, moveBetweenColumns } from './lib/layout';
+  import { TODO_CARD_KEY, arrangeColumns, moveBetweenColumns, withDefaultPlace } from './lib/layout';
   import { collectLinks, depthOf, isFolder, pathKey, pathTo, resolveHome, visibleChildren, type BNode } from './lib/tree';
   import { clearHint, drag, endDrag, hint, openDialog, panel, setHint } from './lib/ui.svelte';
 
@@ -76,12 +77,17 @@
 
   // ---- masonry ----
   // Cards sit in the columns the user arranged them into (see lib/layout.ts);
-  // until they've moved one, they're dealt round-robin.
+  // until they've moved one, they're dealt round-robin. The to-do card starts
+  // top right and moves like any other card.
   const GAP = 16;
   let gridWidth = $state(0);
   const columnCount = $derived(Math.max(1, Math.floor((gridWidth + GAP) / (s.cardWidth + GAP))));
-  const cardKey = (card: BNode) => pathKey([...homePath, card.title]);
-  const columns = $derived(arrangeColumns(cards, cardKey, s.cardLayout, columnCount));
+  type GridCard = BNode | typeof TODO_CARD_KEY;
+  const gridCards = $derived<GridCard[]>(s.showTodos ? [...cards, TODO_CARD_KEY] : cards);
+  const cardKey = (card: GridCard) => (card === TODO_CARD_KEY ? card : pathKey([...homePath, card.title]));
+  const cardId = (card: GridCard) => (card === TODO_CARD_KEY ? card : card.id);
+  const layout = $derived(s.showTodos ? withDefaultPlace(s.cardLayout, TODO_CARD_KEY, columnCount - 1) : s.cardLayout);
+  const columns = $derived(arrangeColumns(gridCards, cardKey, layout, columnCount));
 
   // ---- moving cards ----
   // The whole grid is one drop target, so there are no dead zones: the nearest
@@ -123,9 +129,9 @@
     const id = drag.item.id;
     const to = slotAt(e);
     endDrag();
-    const fromCol = columns.findIndex((c) => c.some((n) => n.id === id));
+    const fromCol = columns.findIndex((c) => c.some((n) => cardId(n) === id));
     if (fromCol < 0) return;
-    const from = { col: fromCol, index: columns[fromCol].findIndex((n) => n.id === id) };
+    const from = { col: fromCol, index: columns[fromCol].findIndex((n) => cardId(n) === id) };
     if (from.col === to.col && from.index === to.index) return;
     const next = moveBetweenColumns(columns, from, to);
     settings.update({ cardLayout: next.map((c) => c.map(cardKey)) });
@@ -185,7 +191,7 @@
       {#snippet failed(error, reset)}{@render crashed('the pinned bookmarks', error, reset)}{/snippet}
     </svelte:boundary>
 
-    {#if cards.length}
+    {#if gridCards.length}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="grid"
@@ -198,18 +204,26 @@
       >
         {#each columns as column, ci (ci)}
           <div class="column" bind:this={columnEls[ci]} class:drop-empty={hint.id === `column:${ci}`}>
-            {#each column as card (card.id)}
-              <svelte:boundary onerror={(e) => console.error('[FlexiHome] card', card.title, e)}>
-                <FolderCard node={card} depth={homeDepth + 1} path={[...homePath, card.title]} index={cards.indexOf(card)} />
-                {#snippet failed(error, reset)}
-                  {@render crashed(`“${card.title}”`, error, reset)}
-                {/snippet}
-              </svelte:boundary>
+            {#each column as card (cardId(card))}
+              {#if card === TODO_CARD_KEY}
+                <svelte:boundary onerror={(e) => console.error('[FlexiHome] to-do', e)}>
+                  <TodoCard index={cards.length} />
+                  {#snippet failed(error, reset)}{@render crashed('the to-do list', error, reset)}{/snippet}
+                </svelte:boundary>
+              {:else}
+                <svelte:boundary onerror={(e) => console.error('[FlexiHome] card', card.title, e)}>
+                  <FolderCard node={card} depth={homeDepth + 1} path={[...homePath, card.title]} index={cards.indexOf(card)} />
+                  {#snippet failed(error, reset)}
+                    {@render crashed(`“${card.title}”`, error, reset)}
+                  {/snippet}
+                </svelte:boundary>
+              {/if}
             {/each}
           </div>
         {/each}
       </div>
-    {:else}
+    {/if}
+    {#if !cards.length}
       <div class="empty glass">
         <Icon name="folder" size={28} />
         <h2>No folders in “{home.node.title || 'this folder'}” yet</h2>

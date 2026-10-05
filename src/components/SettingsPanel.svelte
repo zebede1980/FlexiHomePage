@@ -212,6 +212,14 @@
     </section>
 
     <section>
+      <h3>To-do list</h3>
+      <label class="switch">
+        <input type="checkbox" checked={s.showTodos} onchange={(e) => set({ showTodos: e.currentTarget.checked })} />
+        <span>Show to-do list</span>
+      </label>
+    </section>
+
+    <section>
       <h3>Header</h3>
       <label class="switch">
         <input type="checkbox" checked={s.showClock} onchange={(e) => set({ showClock: e.currentTarget.checked })} />

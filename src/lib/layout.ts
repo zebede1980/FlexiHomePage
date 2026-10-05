@@ -39,6 +39,21 @@ export function arrangeColumns<T>(cards: T[], keyOf: (card: T) => string, saved:
   return columns;
 }
 
+/** Layout key of the to-do card. Folder keys are JSON arrays, so this can't clash with one. */
+export const TODO_CARD_KEY = 'todo';
+
+/**
+ * `saved` with `key` at the top of column `col`, unless the user has already
+ * placed it somewhere. Not saved, so the default follows the window width.
+ */
+export function withDefaultPlace(saved: string[][], key: string, col: number): string[][] {
+  if (saved.some((c) => c.includes(key))) return saved;
+  const next = saved.map((c) => [...c]);
+  while (next.length <= col) next.push([]);
+  next[col].unshift(key);
+  return next;
+}
+
 /** Moves one item between columns. `to.index` counts positions with the moved item already taken out. */
 export function moveBetweenColumns<T>(
   columns: T[][],

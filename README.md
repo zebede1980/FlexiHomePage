@@ -11,6 +11,9 @@ your real browser bookmarks.
   (other cards stay put). Drop a link from the address bar onto a card to save
   it. Bookmark moves are real bookmark changes, so Vivaldi's bookmark panel
   stays in step; the card arrangement is a synced setting.
+- **To-do list.** A card (top right to start with; drag it anywhere like the
+  others) to jot tasks down and tick them off. Syncs with everything else, and
+  can be hidden in settings.
 - **Search.** Start typing anywhere: matches bookmarks by name, site and folder,
   goes straight to typed addresses, or searches the web.
 - **Looks.** Pick a style: *Classic* (glass cards, light/dark/auto theme,
@@ -67,6 +70,13 @@ with Vivaldi Sync like any bookmark. The page hides that folder.
 - Folders are remembered by name path (e.g. `Bookmarks › Work`), not by ID,
   because bookmark IDs differ between machines.
 
+The to-do list uses a second hidden folder, **FlexiHome to-do (do not edit)**,
+with one bookmark per item (the title is the text, a `data:` URL holds whether
+it's done). Because each item is its own bookmark, Vivaldi Sync merges them
+individually: adding a task on one machine while ticking one off on another
+loses neither. If two machines both create the folder before syncing, the
+folders are merged.
+
 ## Development
 
 ```sh
@@ -94,6 +104,7 @@ is set to rebase on pull).
 public/            manifest, background worker, boot.js (pre-paint theme), icons
 src/App.svelte     page shell: theme, background, masonry of folder cards
 src/components/    cards, rows, search, settings drawer, dialogs, toasts
+src/lib/todos.ts   to-do items stored as bookmarks
 src/lib/tree.ts    pure bookmark-tree helpers (paths, search, hidden folders)
 src/lib/settings*.ts         settings schema and the bookmark-backed sync store
 src/lib/bookmarks.svelte.ts  live bookmark tree + mutations

@@ -6,6 +6,9 @@ export type BNode = chrome.bookmarks.BookmarkTreeNode;
 /** Folder FlexiHome keeps its synced settings in. Hidden from the UI. */
 export const SETTINGS_FOLDER_TITLE = 'FlexiHome settings (do not edit)';
 
+/** Folder holding the to-do list, one bookmark per item. Hidden from the UI. */
+export const TODO_FOLDER_TITLE = 'FlexiHome to-do (do not edit)';
+
 /** Vivaldi exposes its bookmark trash as an ordinary folder near the top of the tree. */
 const TRASH_TITLES = new Set(['Trash']);
 
@@ -26,12 +29,18 @@ export const isFolder = (n: BNode): boolean => n.url === undefined;
 /** `depth` is the depth of `n` itself: the invisible root is 0, "Bookmarks"/"Other bookmarks" are 1. */
 export function isHidden(n: BNode, depth: number): boolean {
   if (!isFolder(n)) return false;
-  if (n.title === SETTINGS_FOLDER_TITLE) return true;
+  if (n.title === SETTINGS_FOLDER_TITLE || n.title === TODO_FOLDER_TITLE) return true;
   return depth <= 2 && TRASH_TITLES.has(n.title);
 }
 
 export function visibleChildren(n: BNode, depth: number): BNode[] {
   return (n.children ?? []).filter((c) => !isHidden(c, depth + 1));
+}
+
+/** "Other bookmarks" (id 2 in every Chromium browser), where FlexiHome keeps its own folders off the bookmark bar. */
+export function otherBookmarksId(root: BNode): string {
+  const top = root.children ?? [];
+  return (top.find((c) => c.id === '2') ?? top[top.length - 1] ?? root).id;
 }
 
 export function findById(root: BNode, id: string): BNode | undefined {

@@ -3,6 +3,7 @@
 // this keeps us correct when Vivaldi Sync rewrites things behind our back.
 
 import { settings } from './settings-store.svelte';
+import { mergeTodoFolders } from './todos';
 import { findById, type BNode } from './tree';
 
 const RELOAD_DEBOUNCE_MS = 120;
@@ -20,6 +21,7 @@ class BookmarkStore {
       this.tree = root;
       this.error = null;
       await settings.pull(root);
+      await mergeTodoFolders(root).catch(() => {});
     } catch (e) {
       this.error = e instanceof Error ? e.message : String(e);
     }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arrangeColumns, moveBetweenColumns } from './layout';
+import { arrangeColumns, moveBetweenColumns, withDefaultPlace } from './layout';
 
 const id = (s: string) => s;
 
@@ -54,5 +54,22 @@ describe('moveBetweenColumns', () => {
   it('does not mutate its input', () => {
     moveBetweenColumns(cols, { col: 0, index: 0 }, { col: 1, index: 0 });
     expect(cols).toEqual([['a', 'b', 'c'], ['d']]);
+  });
+});
+
+describe('withDefaultPlace', () => {
+  it('puts the card at the top of the given column, adding columns as needed', () => {
+    expect(withDefaultPlace([['a'], ['b']], 'todo', 1)).toEqual([['a'], ['todo', 'b']]);
+    expect(withDefaultPlace([['a']], 'todo', 2)).toEqual([['a'], [], ['todo']]);
+  });
+
+  it('leaves a layout the user already placed it in alone', () => {
+    const saved = [['todo', 'a'], ['b']];
+    expect(withDefaultPlace(saved, 'todo', 1)).toBe(saved);
+  });
+
+  it('lands top right once dealt', () => {
+    const cols = arrangeColumns(['a', 'b', 'c', 'todo'], id, withDefaultPlace([], 'todo', 2), 3);
+    expect(cols[2][0]).toBe('todo');
   });
 });
