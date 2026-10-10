@@ -1,0 +1,67 @@
+services:
+  flexihome:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: flexihome:latest
+    container_name: flexihome
+    restart: unless-stopped
+    ports:
+      # Loopback only, for direct checks (curl, SSH tunnel). The reverse proxy
+      # reaches the container as flexihome:3000 over nginx-proxy-nw instead.
+      - "127.0.0.1:3030:3000"
+    volumes:
+      - ./data:/app/data
+    networks:
+      # Shared with the reverse proxy, so its proxy host can target
+      # http://flexihome:3000 by container name. Also how the Server tab checks
+      # each app through the proxy.
+      - nginx-proxy-nw
+      - probe
+    environment:
+      - NODE_ENV=production
+      - TZ=Europe/London
+      - PROBE_URL=http://flexihome-probe:9100
+      - PROXY_HOST=nginx-proxy-manager
+    depends_on:
+      - probe
+
+  # Reads the machine for the Server tab: host /proc and /sys, the Docker
+  # socket and the reverse proxy's host list. It holds that access so the
+  # internet-facing container above doesn't: no published port, a network with
+  # no way out, and its only route is a read-only GET /snapshot.
+  probe:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: flexihome:latest
+    container_name: flexihome-probe
+    restart: unless-stopped
+    user: root
+    command: ["node", "--disable-warning=ExperimentalWarning", "dist-server/probe.js"]
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host/root:ro
+      # Nginx Proxy Manager's database, to learn which address reaches which
+      # container. Point NPM_DB at yours in .env, or leave it unset to skip.
+      - ${NPM_DB:-/dev/null}:/npm/database.sqlite:ro
+    networks:
+      - probe
+    environment:
+      - PORT=9100
+      - HOST_PROC=/host/proc
+      - HOST_SYS=/host/sys
+      - HOST_ROOT=/host/root
+      - NPM_DB=/npm/database.sqlite
+      - TZ=Europe/London
+
+networks:
+  nginx-proxy-nw:
+    external: true
+  probe:
+    internal: true

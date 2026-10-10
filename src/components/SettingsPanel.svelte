@@ -1,5 +1,7 @@
 <script lang="ts">
+  import HostedSettings from './HostedSettings.svelte';
   import Icon, { type IconName } from './Icon.svelte';
+  import { hosted, mode } from '../lib/backend.svelte';
   import { BACKGROUNDS, IMAGE_BACKGROUND } from '../lib/backgrounds';
   import { bookmarks } from '../lib/bookmarks.svelte';
   import { ACCENTS, SEARCH_ENGINES, type Settings, type ThemeMode } from '../lib/settings';
@@ -30,7 +32,7 @@
       case 'saving':
         return 'Saving…';
       case 'synced':
-        return 'Saved to your bookmarks';
+        return hosted ? 'Saved to your FlexiHome server' : 'Saved to your bookmarks';
       case 'error':
         return `Couldn't save: ${settings.error}`;
       default:
@@ -69,7 +71,7 @@
       <label class="field">
         <span>Home folder</span>
         <select class="input" value={rootKey} onchange={onRoot}>
-          <option value="">Automatic (bookmark bar)</option>
+          <option value="">Automatic (first folder with bookmarks)</option>
           {#each folders as f (f.node.id)}
             <option value={pathKey(f.path)}>{' '.repeat(f.depth - 1)}{f.node.title || 'Untitled'}</option>
           {/each}
@@ -270,14 +272,33 @@
         <span>{syncLabel}</span>
       </p>
       <p class="note">
-        Settings are stored in a bookmark folder called <em>{SETTINGS_FOLDER_TITLE}</em> under Other bookmarks, so Vivaldi Sync
-        carries them to your other machines with your bookmarks.
+        {#if hosted}
+          Settings are kept on your FlexiHome server, so every browser and device that signs in here shares them.
+        {:else}
+          Settings are stored in a bookmark folder called <em>{SETTINGS_FOLDER_TITLE}</em> under Other bookmarks, so Vivaldi Sync
+          carries them to your other machines with your bookmarks.
+        {/if}
       </p>
       <div class="row">
         <button class="btn" onclick={() => settings.push()}><Icon name="refresh" size={15} /> Save now</button>
         <button class="btn" onclick={() => settings.reset()}>Reset to defaults</button>
       </div>
     </section>
+
+    {#if hosted}<HostedSettings />{/if}
+
+    {#if mode === 'extension'}
+      <section>
+        <h3>Your own site</h3>
+        <p class="note">
+          If you host FlexiHome as a site, this browser can keep its bookmarks in step with it, so the same page works on your phone
+          and in other browsers.
+        </p>
+        <div class="row">
+          <button class="btn" onclick={() => chrome.runtime.openOptionsPage()}><Icon name="link" size={15} /> Link to a FlexiHome site</button>
+        </div>
+      </section>
+    {/if}
 
     <section class="about">
       <p>Tip: start typing anywhere to search · drag cards and bookmarks to rearrange · drop a link from the address bar onto a card to save it.</p>
@@ -316,6 +337,10 @@
   }
   .drawer.open {
     translate: 0 0;
+  }
+  /* Parked off-screen, its shadow would still fall across the page's right edge. */
+  .drawer:not(.open) {
+    box-shadow: none;
   }
   header {
     display: flex;

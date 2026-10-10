@@ -7,9 +7,11 @@
   import LinkPreview from './components/LinkPreview.svelte';
   import PinnedRow from './components/PinnedRow.svelte';
   import SearchBar from './components/SearchBar.svelte';
+  import ServerView from './components/ServerView.svelte';
   import SettingsPanel from './components/SettingsPanel.svelte';
   import Toasts from './components/Toasts.svelte';
   import TodoCard from './components/TodoCard.svelte';
+  import { hosted, session } from './lib/backend.svelte';
   import { IMAGE_BACKGROUND, backgroundCss } from './lib/backgrounds';
   import { bookmarks } from './lib/bookmarks.svelte';
   import { settings } from './lib/settings-store.svelte';
@@ -21,6 +23,19 @@
 
   const s = $derived(settings.value);
   const look = $derived(styleDef(s.style));
+
+  // ---- tabs ----
+  // The address carries the tab (#server), so it can be bookmarked and survives a reload.
+  type View = 'home' | 'server';
+  const hasServerTab = $derived(hosted && session.monitor);
+  const readView = (): View => (location.hash === '#server' ? 'server' : 'home');
+  let wanted = $state<View>(readView());
+  const view = $derived<View>(wanted === 'server' && hasServerTab ? 'server' : 'home');
+
+  function show(v: View) {
+    wanted = v;
+    history.replaceState(null, '', v === 'server' ? '#server' : location.pathname + location.search);
+  }
 
   // ---- theme ----
   const media = window.matchMedia('(prefers-color-scheme: dark)');
@@ -152,8 +167,21 @@
 
 <Backdrop style={look.id} {theme} {accent} css={background} animate={s.effects} />
 
+<svelte:window onhashchange={() => (wanted = readView())} />
+
+{#if hasServerTab}
+  <nav class="tabs glass" aria-label="Sections">
+    <button class:on={view === 'home'} aria-current={view === 'home' ? 'page' : undefined} onclick={() => show('home')}>
+      <Icon name="home" size={15} /><span>Home</span>
+    </button>
+    <button class:on={view === 'server'} aria-current={view === 'server' ? 'page' : undefined} onclick={() => show('server')}>
+      <Icon name="server" size={15} /><span>Server</span>
+    </button>
+  </nav>
+{/if}
+
 <div class="toolbar">
-  {#if home}
+  {#if home && view === 'home'}
     <button class="tb-btn glass" onclick={() => openDialog({ kind: 'folder', mode: 'create', parentId: home.node.id })} title="New folder">
       <Icon name="folder-plus" size={16} />
       <span>New folder</span>
@@ -164,7 +192,16 @@
   </button>
 </div>
 
-<main>
+<main class:server={view === 'server'}>
+  {#if session.offline}
+    <p class="notice" role="status">Can't reach the server, so this is the last copy this browser saw. Changes won't be saved until it's back.</p>
+  {/if}
+  {#if view === 'server'}
+    <svelte:boundary onerror={(e) => console.error('[FlexiHome] server', e)}>
+      <ServerView />
+      {#snippet failed(error, reset)}{@render crashed('the server page', error, reset)}{/snippet}
+    </svelte:boundary>
+  {:else}
   <header class="hero">
     <svelte:boundary onerror={(e) => console.error('[FlexiHome] clock', e)}>
       <Clock />
@@ -237,6 +274,7 @@
       </div>
     {/if}
   {/if}
+  {/if}
 </main>
 
 <SettingsPanel resolvedTheme={theme} />
@@ -278,6 +316,56 @@
     outline: 2px dashed var(--accent);
     outline-offset: -2px;
     background: var(--accent-soft);
+  }
+  main.server {
+    width: min(1180px, 100%);
+    padding-top: 76px;
+    gap: 18px;
+  }
+  .tabs {
+    position: fixed;
+    top: 14px;
+    left: 16px;
+    z-index: 20;
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 999px;
+  }
+  .tabs button {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 30px;
+    padding: 0 13px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-muted);
+    font-weight: 500;
+    transition: background 0.15s, color 0.15s;
+  }
+  .tabs button:hover {
+    color: var(--text);
+  }
+  .tabs button.on {
+    background: var(--surface-solid);
+    color: var(--text);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14);
+  }
+  :global([data-style='constellation']) .tabs {
+    border-radius: 8px;
+  }
+  :global([data-style='constellation']) .tabs button {
+    border-radius: 6px;
+    font: 500 11px var(--font-mono);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  :global([data-style='constellation']) .tabs button.on {
+    background: color-mix(in oklab, var(--accent) 16%, transparent);
+    color: var(--accent);
+    box-shadow: none;
   }
   .toolbar {
     position: fixed;

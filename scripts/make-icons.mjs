@@ -6,6 +6,9 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
 
 const SIZES = [16, 32, 48, 128];
+// Home-screen icons for the hosted site. Phones round the corners themselves,
+// so these fill the whole square instead of leaving transparent corners.
+const FULL_BLEED = [180, 192, 512];
 const OUT = new URL('../public/icons/', import.meta.url);
 const SS = 4; // supersampling factor per axis
 
@@ -57,10 +60,10 @@ const A = [0x7c, 0x6c, 0xff]; // accent violet
 const B = [0x22, 0xd3, 0xee]; // cyan
 const lerp = (a, b, t) => a + (b - a) * t;
 
-function sample(u, v) {
+function sample(u, v, bleed) {
   // u, v in [0,1]. Returns [r,g,b,a] premultiplied-free.
   const body = sdRoundRect(u, v, 0.5, 0.5, 0.46, 0.46, 0.22);
-  if (body > 0) return [0, 0, 0, 0];
+  if (body > 0 && !bleed) return [0, 0, 0, 0];
   const t = Math.min(1, Math.max(0, (u + v) / 2));
   let col = [lerp(A[0], B[0], t), lerp(A[1], B[1], t), lerp(A[2], B[2], t)];
   // 2×2 grid of white tiles; the top-left one is solid, the others translucent.
@@ -79,14 +82,15 @@ function sample(u, v) {
 }
 
 mkdirSync(OUT, { recursive: true });
-for (const size of SIZES) {
+for (const size of [...SIZES, ...FULL_BLEED]) {
+  const bleed = FULL_BLEED.includes(size);
   const buf = Buffer.alloc(size * size * 4);
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       let r = 0, g = 0, b = 0, a = 0;
       for (let sy = 0; sy < SS; sy++) {
         for (let sx = 0; sx < SS; sx++) {
-          const [sr, sg, sb, sa] = sample((x + (sx + 0.5) / SS) / size, (y + (sy + 0.5) / SS) / size);
+          const [sr, sg, sb, sa] = sample((x + (sx + 0.5) / SS) / size, (y + (sy + 0.5) / SS) / size, bleed);
           r += sr * sa;
           g += sg * sa;
           b += sb * sa;

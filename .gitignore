@@ -4,3 +4,6 @@ dist/
 .DS_Store
 # Private key for the stable extension ID — never commit it.
 key.pem
+dist-web/
+dist-server/
+data/

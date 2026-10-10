@@ -20,10 +20,16 @@ function makeEvent() {
 
 let nextId = 1000;
 
-function seed(): BNode {
+export interface MockSpec {
+  title: string;
+  url?: string;
+  children?: MockSpec[];
+}
+
+function sample(): MockSpec {
   const l = (title: string, url: string) => ({ title, url });
-  const f = (title: string, children: object[]) => ({ title, children });
-  const spec = {
+  const f = (title: string, children: MockSpec[]) => ({ title, children });
+  return {
     title: '',
     children: [
       f('Bookmarks', [
@@ -83,29 +89,33 @@ function seed(): BNode {
     ],
   };
 
-  const build = (s: { title: string; url?: string; children?: object[] }, parentId: string | undefined, index: number, id?: string): BNode => {
+}
+
+/** Turns a plain outline into a tree with ids, the top-level folders getting Chrome's fixed 1, 2, 3… */
+function build(spec: MockSpec): BNode {
+  const walk = (s: MockSpec, parentId: string | undefined, index: number, id?: string): BNode => {
     const nodeId = id ?? String(nextId++);
     const node: BNode = { id: nodeId, parentId, index, title: s.title, dateAdded: Date.now(), syncing: false } as BNode;
     if (s.url) node.url = s.url;
     if (s.children) {
-      node.children = (s.children as typeof s[]).map((c, i) => build(c, nodeId, i, parentId === undefined ? String(i + 1) : undefined));
+      node.children = s.children.map((c, i) => walk(c, nodeId, i, parentId === undefined ? String(i + 1) : undefined));
     }
     return node;
   };
-  return build(spec, undefined, 0, '0');
+  return walk(spec, undefined, 0, '0');
 }
 
-export function installMockChrome() {
-  let root: BNode;
-  try {
-    root = JSON.parse(localStorage.getItem(LS_KEY) ?? 'null') ?? seed();
-  } catch {
-    root = seed();
-  }
+export type MockBookmarks = ReturnType<typeof createMockBookmarks>;
+
+/**
+ * An in-memory chrome.bookmarks. Each call makes a separate "browser", which is
+ * how the tests stand up two machines; `save` is told after every change.
+ */
+export function createMockBookmarks(from: MockSpec | BNode = sample(), save: (root: BNode) => void = () => {}) {
+  const root: BNode = 'id' in from ? (from as BNode) : build(from as MockSpec);
   const ids = (n: BNode): number[] => [Number(n.id), ...(n.children ?? []).flatMap(ids)];
   nextId = Math.max(nextId, ...ids(root)) + 1;
-
-  const save = () => localStorage.setItem(LS_KEY, JSON.stringify(root));
+  const persist = () => save(root);
   const clone = <T,>(x: T): T => structuredClone(x);
   const find = (id: string, n: BNode = root): BNode | undefined =>
     n.id === id ? n : (n.children ?? []).map((c) => find(id, c)).find(Boolean);
@@ -148,7 +158,7 @@ export function installMockChrome() {
       const i = d.index === undefined ? parent.children.length : Math.min(d.index, parent.children.length);
       parent.children.splice(i, 0, node);
       reindex(parent);
-      save();
+      persist();
       ev.onCreated.fire(node.id, clone(node));
       return clone(node);
     },
@@ -159,7 +169,7 @@ export function installMockChrome() {
         if (n.url === undefined) throw new Error("Can't set URL of a bookmark folder.");
         n.url = changes.url;
       }
-      save();
+      persist();
       ev.onChanged.fire(id, { title: n.title, url: n.url });
       return clone(n);
     },
@@ -177,7 +187,7 @@ export function installMockChrome() {
       n.parentId = newParent.id;
       reindex(oldParent);
       reindex(newParent);
-      save();
+      persist();
       ev.onMoved.fire(id, { parentId: newParent.id, index: n.index, oldParentId: oldParent.id, oldIndex });
       return clone(n);
     },
@@ -191,10 +201,22 @@ export function installMockChrome() {
       const parent = must(n.parentId!);
       parent.children!.splice(parent.children!.indexOf(n), 1);
       reindex(parent);
-      save();
+      persist();
       ev.onRemoved.fire(id, { parentId: parent.id, index: n.index, node: clone(n) });
     },
   };
+
+  return api;
+}
+
+export function installMockChrome() {
+  let stored: BNode | null = null;
+  try {
+    stored = JSON.parse(localStorage.getItem(LS_KEY) ?? 'null');
+  } catch {
+    // Unreadable: fall back to the sample tree.
+  }
+  const api = createMockBookmarks(stored ?? sample(), (root) => localStorage.setItem(LS_KEY, JSON.stringify(root)));
 
   const g = globalThis as unknown as { chrome?: Record<string, unknown> };
   g.chrome = {
