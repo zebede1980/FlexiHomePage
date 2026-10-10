@@ -85,7 +85,8 @@ New-Item -ItemType Directory -Force $dir | Out-Null
 foreach ($f in $files) { Copy-Item (Join-Path $built $f) $dir -Force }
 # The built files are ES modules; this is what tells Node so, away from the project's own package.json.
 '{ "type": "module" }' | Set-Content (Join-Path $dir 'package.json')
-[ordered]@{ url = $Url.TrimEnd('/'); key = $Key; interval = $Interval; checks = $checks; log = (Join-Path $dir 'agent.log') } |
+# @() again here: PowerShell hands a one-item list back from the `if` above as the bare item, and the agent wants a list.
+[ordered]@{ url = $Url.TrimEnd('/'); key = $Key; interval = $Interval; checks = @($checks); log = (Join-Path $dir 'agent.log') } |
   ConvertTo-Json -Depth 5 | Set-Content $config
 
 # One reading, sent nowhere: shows that it runs here before it is left to run unseen.
