@@ -14,7 +14,7 @@
 // in-memory bookmarks and a real server store.
 
 import { decodeSettingsUrl } from '../lib/settings';
-import { SETTINGS_FOLDER_TITLE } from '../lib/tree';
+import { SETTINGS_FOLDER_TITLE, isTrash } from '../lib/tree';
 
 export interface SyncNode {
   id: string;
@@ -24,6 +24,8 @@ export interface SyncNode {
   children?: SyncNode[];
   /** Browser side: Chrome's name for its fixed folders ("bookmarks-bar", "other", "mobile", "managed"). */
   folderType?: string;
+  /** Browser side: Vivaldi's mark on its bookmark trash folder. */
+  trash?: boolean;
   /** Server side: which fixed folder a top-level folder mirrors. */
   role?: string;
   /** Server side: the linked browser this came from; absent when it was made on the site. */
@@ -119,7 +121,6 @@ export interface SyncResult {
   rev: number;
 }
 
-const TRASH_TITLE = 'Trash';
 const SETTINGS_BOOKMARK_TITLE = 'settings';
 const CONFIRM_MIN = 10;
 const CONFIRM_SHARE = 0.2;
@@ -140,19 +141,19 @@ function roleOf(n: SyncNode): string | undefined {
 }
 
 /** Top-level folders the browser manages itself and that must not be mirrored. */
-const isSkippedTop = (n: SyncNode) => !isFolder(n) || n.title === TRASH_TITLE || n.folderType === 'managed';
+const isSkippedTop = (n: SyncNode) => !isFolder(n) || isTrash(n) || n.folderType === 'managed';
 
 /**
  * What the browser side leaves out. Vivaldi's Trash is an ordinary folder near
  * the top of the tree; leaving it out means a bookmark moved there reads as
  * deleted, and one restored from it as new.
  */
-const skipLocal = (n: SyncNode, depth: number) => (depth === 1 && isSkippedTop(n)) || (depth <= 2 && isFolder(n) && n.title === TRASH_TITLE);
+const skipLocal = (n: SyncNode, depth: number) => (depth === 1 && isSkippedTop(n)) || (depth <= 2 && isTrash(n));
 
 function findTrash(root: SyncNode): string | undefined {
   for (const top of root.children ?? []) {
-    if (isFolder(top) && top.title === TRASH_TITLE) return top.id;
-    const inner = (top.children ?? []).find((c) => isFolder(c) && c.title === TRASH_TITLE);
+    if (isTrash(top)) return top.id;
+    const inner = (top.children ?? []).find(isTrash);
     if (inner) return inner.id;
   }
   return undefined;

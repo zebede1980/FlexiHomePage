@@ -47,6 +47,15 @@ describe('visibility', () => {
     expect(visibleChildren(deep, 3)).toHaveLength(1);
     expect(collectLinks(root).map((l) => l.node.title)).not.toContain('Deleted');
   });
+
+  it("goes by Vivaldi's trash flag where there is one, not the title", () => {
+    const flag = (n: BNode, trash: boolean) => Object.assign(n, { trash });
+    const deleted = flag(folder('Deleted', [link('Gone', 'https://gone.example/')]), true);
+    const mine = flag(folder('Trash', [link('Bin day', 'https://bins.example/')]), false);
+    const root = folder('', [folder('Bookmarks', [mine]), deleted]);
+    expect(visibleChildren(root, 0).map((c) => c.title)).toEqual(['Bookmarks']);
+    expect(collectLinks(root).map((l) => l.node.title)).toEqual(['Bin day']);
+  });
 });
 
 describe('paths', () => {

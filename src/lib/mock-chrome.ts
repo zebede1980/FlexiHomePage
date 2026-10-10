@@ -24,6 +24,8 @@ export interface MockSpec {
   title: string;
   url?: string;
   children?: MockSpec[];
+  /** Vivaldi's mark on its trash folder. When the spec uses it, every other node says `false`, as in Vivaldi. */
+  trash?: boolean;
 }
 
 function sample(): MockSpec {
@@ -93,10 +95,13 @@ function sample(): MockSpec {
 
 /** Turns a plain outline into a tree with ids, the top-level folders getting Chrome's fixed 1, 2, 3… */
 function build(spec: MockSpec): BNode {
+  const flagsTrash = (s: MockSpec): boolean => s.trash !== undefined || (s.children ?? []).some(flagsTrash);
+  const vivaldi = flagsTrash(spec);
   const walk = (s: MockSpec, parentId: string | undefined, index: number, id?: string): BNode => {
     const nodeId = id ?? String(nextId++);
     const node: BNode = { id: nodeId, parentId, index, title: s.title, dateAdded: Date.now(), syncing: false } as BNode;
     if (s.url) node.url = s.url;
+    if (vivaldi) (node as BNode & { trash: boolean }).trash = s.trash ?? false;
     if (s.children) {
       node.children = s.children.map((c, i) => walk(c, nodeId, i, parentId === undefined ? String(i + 1) : undefined));
     }

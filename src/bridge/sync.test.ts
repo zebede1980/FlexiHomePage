@@ -330,6 +330,35 @@ describe('one browser and the site', () => {
     await inStep();
   });
 
+  it("finds Vivaldi's trash by its flag, whatever it is called", async () => {
+    // What Vivaldi 8.2 really has: the trash is titled "Deleted", and a folder the user named "Trash" is just a folder.
+    const spec: MockSpec = {
+      title: '',
+      children: [
+        { title: 'Bookmarks', children: [{ title: 'Gmail', url: 'https://mail.google.com/' }, { title: 'Trash', children: [{ title: 'Bin day', url: 'https://bins.example/' }] }] },
+        { title: 'Other bookmarks', children: [] },
+        { title: 'Deleted', trash: true, children: [{ title: 'Old thing', url: 'https://example.org/' }] },
+      ],
+    };
+    store = new BookmarkStore(openDb(':memory:'));
+    const viv = new Machine('Vivaldi', remoteApi(store), spec);
+    await viv.run();
+    expect(titles(site())).toEqual(['Bookmarks', 'Other bookmarks']);
+    expect(titles(siteFind('Bookmarks', 'Trash'))).toEqual(['Bin day']);
+
+    // Deleting in Vivaldi moves the bookmark to the trash folder: the site drops it.
+    const gmail = await viv.find('Bookmarks', 'Gmail');
+    await viv.bm.move(gmail.id, { parentId: (await viv.find('Deleted')).id });
+    expect((await viv.run()).summary.toSite.removed).toBe(1);
+    expect(titles(siteFind('Bookmarks'))).toEqual(['Trash']);
+
+    // And a deletion on the site lands in that same folder.
+    store.remove(siteFind('Bookmarks', 'Trash', 'Bin day').id, false);
+    await viv.run();
+    expect(titles(await viv.find('Deleted'))).toEqual(['Old thing', 'Gmail', 'Bin day']);
+    expect(titles(site())).toEqual(['Bookmarks', 'Other bookmarks']);
+  });
+
   it('follows a bookmark into a folder created in the same breath', async () => {
     const bar = await pc.find('Bookmarks');
     const made = await pc.bm.create({ parentId: bar.id, title: 'Fresh' });

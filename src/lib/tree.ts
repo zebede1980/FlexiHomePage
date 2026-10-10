@@ -9,8 +9,17 @@ export const SETTINGS_FOLDER_TITLE = 'FlexiHome settings (do not edit)';
 /** Folder holding the to-do list, one bookmark per item. Hidden from the UI. */
 export const TODO_FOLDER_TITLE = 'FlexiHome to-do (do not edit)';
 
-/** Vivaldi exposes its bookmark trash as an ordinary folder near the top of the tree. */
+/** Only for browsers that don't flag their trash folder: see `isTrash`. */
 const TRASH_TITLES = new Set(['Trash']);
+
+/**
+ * Vivaldi exposes its bookmark trash as an ordinary folder near the top of the
+ * tree and marks it `trash: true` (every other node says `false`). Go by the
+ * flag: the folder's title is not fixed (Vivaldi 8.2 calls it "Deleted"). The
+ * title is only consulted where a browser doesn't say either way.
+ */
+export const isTrash = (n: { title: string; url?: string; trash?: boolean }): boolean =>
+  n.url === undefined && (n.trash ?? TRASH_TITLES.has(n.title));
 
 export interface FolderEntry {
   node: BNode;
@@ -30,7 +39,7 @@ export const isFolder = (n: BNode): boolean => n.url === undefined;
 export function isHidden(n: BNode, depth: number): boolean {
   if (!isFolder(n)) return false;
   if (n.title === SETTINGS_FOLDER_TITLE || n.title === TODO_FOLDER_TITLE) return true;
-  return depth <= 2 && TRASH_TITLES.has(n.title);
+  return depth <= 2 && isTrash(n);
 }
 
 export function visibleChildren(n: BNode, depth: number): BNode[] {
