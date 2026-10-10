@@ -65,6 +65,42 @@ used to *be* the page also became the link between browser and site.
 - Only Docker containers are apps. Things running outside Docker appear only if
   a proxy host points at an address, and then only as an address check.
 
+### Other machines (the agent)
+
+Added so the owner's home PC, which hosts things too but is often off, shows
+beside the server.
+
+- **Push, not pull.** `agent.ts` runs on the machine and posts a report to
+  `/api/agent/report` every ten seconds with a key of its own (`machines`
+  table, hash only). Nothing listens on the machine, so there is nothing to
+  forward or secure there, and "no reports for 45 seconds" is the whole of
+  offline detection. A pull through the PC's own reverse proxy was the
+  alternative; it would have meant another public endpoint guarding the Docker
+  socket's contents.
+- **Runs natively on Windows, not in a container.** In Docker Desktop a
+  container sees the Linux virtual machine, not the PC: wrong memory, wrong
+  disks, no graphics card. Natively it uses `node:os` for processor and
+  memory, `statfs` per drive letter, `netstat -e` for network totals (32-bit
+  counters that wrap; every adapter is summed, so VPN traffic counts twice)
+  and `nvidia-smi` for the card. Docker is reached over its named pipe, and
+  when that isn't there the report says Docker is unavailable.
+- **Proxy hosts without a mount.** The agent copies Nginx Proxy Manager's
+  SQLite file out of its container through Docker's archive endpoint (a GET),
+  every five minutes, so it doesn't matter where that container keeps its data.
+- **In `monitor.ts`** each machine is a second source next to the probe's
+  snapshot. Its apps get keys starting `m<id>/`, so the existing `uptime`,
+  `incidents` and `app_prefs` tables hold them unchanged. `#appViews` is the
+  one place apps are judged, for the server and for machines alike. Public
+  addresses a machine reports are tried from the site directly rather than
+  through the server's proxy container.
+- The last report is kept in the `machines` row, so a machine's last readings
+  survive a restart of the site and are still shown while it is off.
+  `machine_samples` holds a week of per-minute averages, as `host_samples`
+  does for the server, with three extra columns for the graphics card.
+- While Docker isn't running on a machine, the containers from its last good
+  report stay listed with the state `docker-off`, so its apps read as down for
+  a stated reason instead of disappearing.
+
 Charts follow a few fixed rules: one series per chart in the accent colour;
 status colours (green, amber, red) are only ever used for state and always
 come with an icon and a word; meters turn amber at 75% and red at 90%.

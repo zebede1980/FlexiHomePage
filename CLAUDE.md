@@ -64,6 +64,10 @@ server/src/bookmarks.ts  the bookmark tree (SQLite), batches, backups (snapshots
 server/src/auth.ts       one password, browser sessions, bridge keys, slow-down on wrong guesses
 server/src/monitor.ts    Server tab data: app health, address checks, uptime, history
 server/src/probe.ts      separate process: reads host /proc, /sys, Docker, the proxy's host list
+server/src/docker.ts, npm-db.ts   reading containers and proxy hosts; shared by the probe and the agent
+server/src/machines.ts   other machines that report in: their keys, and the checking of what they send
+server/src/agent.ts, agent-lib.ts   separate program run ON those machines; Node built-ins only
+scripts/install-agent.ps1         installs that agent on a Windows PC (copies four files out of dist-server)
 server/src/favicons.ts   site icons fetched once (Google's service) and cached on disk
 server/src/db.ts         schema as a list of migrations; add a new entry, never edit an old one
 server/src/cli.ts        `flexihome reset-password | bridges | unlink <id>`
@@ -95,6 +99,23 @@ src/components/SignIn.svelte, HostedSettings.svelte                      hosted-
 - **The probe is the only holder of the Docker socket.** The web container
   must not be given it, and the probe must stay off any network with a route
   out and keep offering only `GET /snapshot` and `/health`.
+- **A machine's key (`fhm_…`) must stay good for one thing only**: posting
+  that machine's report to `/api/agent/report`. That route is in `OPEN` and
+  checks the key itself; nothing else may accept one. Adding and removing
+  machines is for a signed-in browser only, never a bridge key.
+- **A report is from the internet.** Everything in it goes through
+  `cleanReport()` (types, lengths, ranges) before it is stored or shown. The
+  addresses it asks the site to try are only tried if they look public
+  (`isPublicName`) and don't resolve to a private address (`publicLookup`),
+  or a stolen key could make the site poke at its own network.
+- **A machine that stops reporting is "off", not "down".** Its apps go to the
+  `off` state, their incidents close, and their uptime isn't counted while it
+  is off; only the machine's own row (`machine:<id>` in `uptime`) records the
+  gap. Don't turn that into red alarms: a PC being switched off is normal.
+- **The agent must import nothing but Node's own modules** (and types). The
+  install script copies `agent.js`, `agent-lib.js`, `docker.js` and
+  `npm-db.js` out of `dist-server/` to run alone; a new runtime import means a
+  new file in that list in `scripts/install-agent.ps1`.
 - **Requests with an empty JSON body.** Fastify answers 400 to a request that
   sets `content-type: application/json` and sends nothing. `api()` only sets
   the header when there is a body; every non-GET call passes at least `{}`.

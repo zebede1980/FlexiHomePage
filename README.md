@@ -80,7 +80,8 @@ signed in after that.
 
 `docker exec -it flexihome flexihome reset-password` prints a fresh set-up
 link if you forget it; `flexihome bridges` and `flexihome unlink <id>` manage
-linked browsers.
+linked browsers; `flexihome machines`, `add-machine <name>` and
+`remove-machine <id>` manage the other machines that report in.
 
 ### The Server tab
 
@@ -99,6 +100,57 @@ The probe is the only thing given the Docker socket and the host's `/proc`,
 `/sys` and `/` (all read-only). It has no published port, sits on a network
 with no route out, and offers nothing but a read-only summary to the web
 container, so the internet-facing process never holds that access itself.
+
+### Other machines
+
+A PC or another server can appear on the Server tab beside the one the site
+runs on, each under its own tab. It runs a small *agent* that sends the site a
+summary of itself every ten seconds. The agent only calls out, so a PC behind a
+home router needs nothing opened or forwarded, and a machine that is switched
+off just shows as **Offline**, with its last readings, rather than as broken.
+
+What a machine shows:
+
+- Processor (overall and core by core), memory, every drive, network traffic
+  and, with an NVIDIA card, how busy the card is, its memory, temperature,
+  power draw and fan. An hour, a day or a week of history, as for the server.
+- When the machine itself was on, hour by hour.
+- A row per Docker container, as on the server. If Docker isn't running, they
+  stay listed as down, with that as the reason.
+- If Nginx Proxy Manager runs on that machine, each container's public address,
+  which the site then tries from where it is (so it shows whether the app can
+  really be reached from outside, and when its certificate runs out).
+- Any other address you name for the agent to try from the machine itself, for
+  apps there that aren't containers.
+
+To add one:
+
+1. On the site: Settings → Other machines → **Add a machine**. Copy the key it
+   shows; it can't be shown again. (Or `docker exec flexihome flexihome
+   add-machine "Desktop PC"` on the server.)
+2. On the machine, with Node 22 or newer and a copy of this repository:
+
+   ```powershell
+   npm ci; npm run build:server
+   scripts\install-agent.ps1 -Url https://home.example.com -Key fhm_… -Check 'ComfyUI=http://127.0.0.1:8188/'
+   ```
+
+   That is for Windows: it copies the agent to `%LOCALAPPDATA%\FlexiHomeAgent`
+   and starts it, without a window, at each sign-in. `-Check` is optional and
+   repeatable. Run the script again without `-Key` to update the agent after a
+   `git pull`, and with `-Uninstall` to remove it.
+
+   Anywhere else, run it however you run things: `node dist-server/agent.js
+   config.json`, where the file holds `{ "url": "https://…", "key": "fhm_…" }`
+   (and optionally `interval`, `checks`, `docker`, `proxyHosts`, `log`; they
+   are described at the top of `server/src/agent.ts`). `--once` on the end
+   prints what it would send and stops.
+
+The key lets that machine post its own report and nothing else: it can't read
+bookmarks or sign in. Removing the machine in Settings revokes it and deletes
+its history. On Windows the figures are the real machine's, which is why the
+agent runs there directly rather than in a container; the processor and memory
+shown per container are shares of Docker Desktop's own virtual machine.
 
 ### Linking a browser
 
@@ -202,7 +254,9 @@ src/bridge/        the extension's background worker and two-way sync
 src/lib/backend.svelte.ts    which build this is; calls to the server
 src/lib/server-chrome.ts     chrome.bookmarks answered by the server
 server/src/        the hosted site: routes (app.ts), bookmark store, sign-in,
-                   the Server tab's data (monitor.ts) and the probe (probe.ts)
+                   the Server tab's data (monitor.ts), the probe (probe.ts),
+                   and the agent other machines run (agent.ts, machines.ts)
+scripts/install-agent.ps1    puts the agent on a Windows PC
 src/lib/todos.ts   to-do items stored as bookmarks
 src/lib/tree.ts    pure bookmark-tree helpers (paths, search, hidden folders)
 src/lib/settings*.ts         settings schema and the bookmark-backed sync store
