@@ -17,6 +17,8 @@ const COOKIE = 'fh_session';
 const COOKIE_MAX_AGE = 400 * 24 * 3600;
 /** How long the bridge that applies new bookmarks to the browser keeps that job without checking in. */
 const LEASE_MS = 24 * 3600_000;
+const MAX_MACHINES = 20;
+const MIN_REPORT_GAP_MS = 2_000;
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -50,7 +52,8 @@ export async function buildApp(db: Db, config: Config, opts: { logger?: boolean 
 
   // ---- who is asking ----
 
-  const OPEN = new Set(['/api/health', '/api/auth/state', '/api/auth/login', '/api/auth/setup', '/api/auth/logout', '/api/bridge/link']);
+  // The last one is open here because it answers to a machine's key, checked by the route itself.
+  const OPEN = new Set(['/api/health', '/api/auth/state', '/api/auth/login', '/api/auth/setup', '/api/auth/logout', '/api/bridge/link', '/api/agent/report']);
 
   server.decorateRequest('who', null);
   server.addHook('onRequest', async (req, reply) => {
@@ -294,7 +297,10 @@ export async function buildApp(db: Db, config: Config, opts: { logger?: boolean 
 
   server.get('/api/monitor', async () => monitor.view());
 
-  server.get('/api/monitor/history', async (req) => monitor.history(str((req.query as { range?: string }).range) || '1h'));
+  server.get('/api/monitor/history', async (req) => {
+    const q = req.query as { range?: string; machine?: string };
+    return monitor.history(str(q.range) || '1h', q.machine ? Number(q.machine) : undefined);
+  });
 
   server.put('/api/monitor/apps/:key', async (req) => {
     const b = body(req) as { label?: string | null; url?: string | null; hidden?: boolean };
@@ -304,6 +310,59 @@ export async function buildApp(db: Db, config: Config, opts: { logger?: boolean 
       hidden: typeof b.hidden === 'boolean' ? b.hidden : undefined,
     });
     return monitor.view();
+  });
+
+  // ---- other machines that report in ----
+
+  /** A machine's key is created, and the machine forgotten, only by the owner at the site: never by a bridge. */
+  const ownerOnly = (req: FastifyRequest, reply: FastifyReply): boolean => {
+    if (req.who === 'session') return true;
+    void reply.code(403).send({ error: 'Sign in at the site to do this.' });
+    return false;
+  };
+
+  server.get('/api/machines', async (req, reply) => {
+    if (!ownerOnly(req, reply)) return reply;
+    return { machines: monitor.machines.list() };
+  });
+
+  server.post('/api/machines', async (req, reply) => {
+    if (!ownerOnly(req, reply)) return reply;
+    if (monitor.machines.list().length >= MAX_MACHINES) return reply.code(400).send({ error: `No more than ${MAX_MACHINES} machines can report in.` });
+    return monitor.machines.create(str(body(req).name, 60));
+  });
+
+  server.patch('/api/machines/:id', async (req, reply) => {
+    if (!ownerOnly(req, reply)) return reply;
+    monitor.machines.rename(Number((req.params as { id: string }).id), str(body(req).name, 60));
+    return { machines: monitor.machines.list() };
+  });
+
+  server.delete('/api/machines/:id', async (req, reply) => {
+    if (!ownerOnly(req, reply)) return reply;
+    monitor.removeMachine(Number((req.params as { id: string }).id));
+    return { ok: true };
+  });
+
+  /** Where a machine's agent sends its summary. The key says which machine; it opens nothing else. */
+  const lastReport = new Map<number, number>();
+  server.post('/api/agent/report', { bodyLimit: 512 * 1024 }, async (req, reply) => {
+    const key = /^Bearer (.+)$/.exec(req.headers.authorization ?? '')?.[1];
+    const id = monitor.machines.check(key);
+    if (id === null) {
+      // Wrong keys slow down like wrong passwords. A right key is never held up by it: the machine may share an
+      // address with someone who has just mistyped the password a few times.
+      const wait = auth.limiter.waitFor(req.ip);
+      if (wait > 0) return reply.code(429).send({ error: `Too many wrong tries. Wait ${wait} seconds.`, wait });
+      auth.limiter.fail(req.ip);
+      return reply.code(401).send({ error: "That key isn't one of this site's." });
+    }
+    // More often than this is a misconfigured agent, and every report is a write to the database.
+    const now = Date.now();
+    if (now - (lastReport.get(id) ?? 0) < MIN_REPORT_GAP_MS) return reply.code(429).send({ error: 'Reporting too often.' });
+    lastReport.set(id, now);
+    monitor.acceptReport(id, req.body);
+    return { ok: true };
   });
 
   // ---- the page itself ----

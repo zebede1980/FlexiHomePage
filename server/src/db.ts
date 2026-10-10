@@ -83,6 +83,32 @@ const MIGRATIONS: string[] = [
   `,
   // Which linked browser a bookmark came from (a bridge key's id); NULL when it was made on the site itself.
   `ALTER TABLE nodes ADD COLUMN origin INTEGER`,
+  // Other machines that report in through the agent: their key, their last report, and a week of readings.
+  `
+  CREATE TABLE machines (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    hash TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    seen_at INTEGER,
+    report TEXT
+  );
+
+  CREATE TABLE machine_samples (
+    machine INTEGER NOT NULL,
+    ts INTEGER NOT NULL,
+    cpu REAL NOT NULL,
+    mem REAL NOT NULL,
+    load1 REAL NOT NULL,
+    rx REAL NOT NULL,
+    tx REAL NOT NULL,
+    -- NULL on a machine with no graphics card to read.
+    gpu REAL,
+    vram REAL,
+    gpu_temp REAL,
+    PRIMARY KEY (machine, ts)
+  );
+  `,
 ];
 
 export function openDb(dataDir: string | ':memory:'): Db {

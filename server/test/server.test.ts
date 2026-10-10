@@ -2,11 +2,12 @@
 // page code written against the browser API runs on it unchanged. So the same
 // scripted edits are run against both and the trees compared.
 
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildApp, type App } from '../src/app.js';
 import { BookmarkStore, type TreeNode } from '../src/bookmarks.js';
 import { openDb } from '../src/db.js';
-import { deriveApps, judge } from '../src/monitor.js';
+import { cleanReport } from '../src/machines.js';
+import { Monitor, deriveApps, deriveMachineApps, isPublicName, judge } from '../src/monitor.js';
 import { createMockBookmarks } from '../../src/lib/mock-chrome';
 
 const config = { port: 0, host: '127.0.0.1', dataDir: ':memory:', webDir: '/nonexistent', probeUrl: '', proxyHost: 'x' };
@@ -260,6 +261,156 @@ describe('http api', () => {
     // Unlinking the holder frees the job straight away.
     app.auth.revokeToken(app.auth.listTokens().find((t) => t.name === 'Desktop')!.id);
     expect(await lease(laptop)).toMatchObject({ primary: true, holder: 'Laptop', linked: [2] });
+  });
+});
+
+describe('other machines', () => {
+  let app: App;
+  const json = { 'content-type': 'application/json', 'x-flexihome': '1' };
+  beforeEach(async () => {
+    app = await buildApp(openDb(':memory:'), config);
+  });
+  afterEach(() => vi.useRealTimers());
+
+  async function signedIn(): Promise<string> {
+    const res = await app.server.inject({ method: 'POST', url: '/api/auth/setup', headers: json, payload: { code: app.auth.issueSetupCode(), password: 'correct horse battery' } });
+    return `fh_session=${res.cookies.find((c) => c.name === 'fh_session')!.value}`;
+  }
+  const addMachine = async (cookie: string, name = 'Desktop PC') =>
+    (await app.server.inject({ method: 'POST', url: '/api/machines', headers: { ...json, cookie }, payload: { name } })).json() as { id: number; name: string; key: string };
+  const send = (key: string, payload: object) =>
+    app.server.inject({ method: 'POST', url: '/api/agent/report', headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' }, payload });
+  const machineView = async (cookie: string) => (await app.server.inject({ url: '/api/monitor', headers: { cookie } })).json().machines[0];
+
+  const container = (name: string, over: object = {}) => ({
+    id: name, name, image: 'img', project: '', service: '', state: 'running', status: 'Up 2 hours', health: '', startedAt: 1, finishedAt: null,
+    exitCode: null, restarts: 0, cpu: 0.01, mem: 1000, ports: [], networks: [], ...over,
+  });
+  const host = (over: object = {}) => ({
+    hostname: 'pc', os: 'Windows 11 Pro', kernel: '10.0', cores: 4, uptime: 600, load: [0, 0, 0], cpu: 0.25, mem: { total: 100, used: 40, available: 60 }, swap: { total: 0, used: 0 },
+    disk: { total: 1000, used: 500 }, net: { rx: 10, tx: 20 }, rebootRequired: false, platform: 'win32', cpuModel: 'Some CPU', perCore: [0.1, 0.2, 0.3, 0.4],
+    disks: [{ name: 'C:', total: 1000, used: 500 }], gpus: [{ name: 'Some GPU', util: 0.5, memUsed: 4, memTotal: 16, temp: 40, power: 100, fan: 0.3 }], ...over,
+  });
+  const report = (over: object = {}) => ({ agent: { version: '1', interval: 10 }, host: host(), docker: { available: true, error: '' }, containers: [container('comfy-gateway')], proxyHosts: [], checks: [], errors: [], ...over });
+
+  it("gives a machine a key that posts its report and opens nothing else", async () => {
+    const cookie = await signedIn();
+    expect((await app.server.inject({ url: '/api/auth/state', headers: { cookie } })).json().monitor).toBe(false);
+    const made = await addMachine(cookie);
+    expect(made.key).toMatch(/^fhm_/);
+    // There is now something for the Server tab to show.
+    expect((await app.server.inject({ url: '/api/auth/state', headers: { cookie } })).json().monitor).toBe(true);
+
+    expect((await send('fhm_wrong', report())).statusCode).toBe(401);
+    expect((await send(made.key, report())).statusCode).toBe(200);
+    expect((await app.server.inject({ url: '/api/tree', headers: { authorization: `Bearer ${made.key}` } })).statusCode).toBe(401);
+    expect((await app.server.inject({ url: '/api/monitor', headers: { authorization: `Bearer ${made.key}` } })).statusCode).toBe(401);
+    // Straight after one report, another is too soon.
+    expect((await send(made.key, report())).statusCode).toBe(429);
+
+    // A linked browser's key is not the owner: it can't add or remove machines.
+    const { token } = (await app.server.inject({ method: 'POST', url: '/api/bridge/link', headers: json, payload: { password: 'correct horse battery', name: 'Vivaldi' } })).json();
+    const bridge = { authorization: `Bearer ${token}`, 'content-type': 'application/json' };
+    expect((await app.server.inject({ method: 'POST', url: '/api/machines', headers: bridge, payload: { name: 'x' } })).statusCode).toBe(403);
+    expect((await app.server.inject({ method: 'DELETE', url: `/api/machines/${made.id}`, headers: bridge, payload: {} })).statusCode).toBe(403);
+
+    await app.server.inject({ method: 'DELETE', url: `/api/machines/${made.id}`, headers: { ...json, cookie }, payload: {} });
+    expect((await send(made.key, report())).statusCode).toBe(401);
+    expect((await app.server.inject({ url: '/api/monitor', headers: { cookie } })).json().machines).toEqual([]);
+  });
+
+  it('shows what the machine reported, with its apps kept apart from the server\'s own', async () => {
+    const cookie = await signedIn();
+    const made = await addMachine(cookie);
+    await send(made.key, report({ checks: [{ name: 'ComfyUI', url: 'http://127.0.0.1:8188/', ok: true, status: 200, ms: 4, error: '', checkedAt: Date.now(), fails: 0 }] }));
+    const m = await machineView(cookie);
+    expect(m).toMatchObject({ id: made.id, name: 'Desktop PC', online: true, docker: { available: true } });
+    expect(m.host).toMatchObject({ hostname: 'pc', platform: 'win32', perCore: [0.1, 0.2, 0.3, 0.4], gpus: [{ name: 'Some GPU', util: 0.5 }] });
+    expect(m.apps.map((a: { key: string; state: string }) => [a.key, a.state])).toEqual([
+      [`m${made.id}/comfy-gateway`, 'up'],
+      [`m${made.id}/check:ComfyUI`, 'up'],
+    ]);
+    const history = (await app.server.inject({ url: `/api/monitor/history?range=1h&machine=${made.id}`, headers: { cookie } })).json();
+    expect(history.samples).toHaveLength(1);
+    expect(history.samples[0].slice(1)).toEqual([0.25, 0.4, 10, 20, 0, 0.5, 0.25, 40]);
+    // The server's own history is a different question.
+    expect((await app.server.inject({ url: '/api/monitor/history?range=1h', headers: { cookie } })).json().samples).toEqual([]);
+  });
+
+  it("clips and corrects a report rather than trusting it", () => {
+    const r = cleanReport({
+      agent: { version: 'x'.repeat(500), interval: -5 },
+      host: host({ cpu: 7, hostname: 'h'.repeat(500), perCore: ['no', 2, -1], gpus: [{ name: 5, util: 'lots', temp: 'hot' }], mem: 'plenty' }),
+      docker: 'yes',
+      containers: [container('ok'), { name: '' }, 'nonsense'],
+      checks: [{ name: 'c', url: 'http://x/', ok: 'true', fails: -3 }],
+      errors: 'none',
+    }, 1000);
+    expect(r.ts).toBe(1000);
+    expect(r.agent).toEqual({ version: 'x'.repeat(20), interval: 1 });
+    expect(r.host).toMatchObject({ cpu: 1, perCore: [0, 1, 0], mem: { total: 0, used: 0, available: 0 }, gpus: [{ name: '', util: 0, temp: null }] });
+    expect(r.host!.hostname).toHaveLength(80);
+    expect(r.docker).toEqual({ available: false, error: '' });
+    expect(r.containers.map((c) => c.name)).toEqual(['ok']);
+    expect(r.checks[0]).toMatchObject({ ok: false, fails: 0, status: null });
+    expect(r.errors).toEqual([]);
+    expect(cleanReport(null, 5)).toMatchObject({ ts: 5, host: null, containers: [] });
+  });
+
+  it('says an app the agent could not reach twice running is down, and why', async () => {
+    const cookie = await signedIn();
+    const made = await addMachine(cookie);
+    const check = (fails: number) => ({ name: 'ComfyUI', url: 'http://127.0.0.1:8188/', ok: false, status: null, ms: 3, error: 'nothing is listening there', checkedAt: Date.now(), fails });
+    app.monitor.acceptReport(made.id, report({ containers: [], checks: [check(1)] }));
+    expect((await machineView(cookie)).apps[0].state).toBe('up');
+    app.monitor.acceptReport(made.id, report({ containers: [], checks: [check(2)] }));
+    expect((await machineView(cookie)).apps[0]).toMatchObject({ state: 'down', issues: ['Not answering at its address: nothing is listening there.'] });
+  });
+
+  it('keeps the containers listed, as down, while Docker is not running there', async () => {
+    const cookie = await signedIn();
+    const made = await addMachine(cookie);
+    app.monitor.acceptReport(made.id, report({ containers: [container('npm'), container('comfy-gateway')] }));
+    app.monitor.acceptReport(made.id, report({ docker: { available: false, error: '' }, containers: [] }));
+    const m = await machineView(cookie);
+    expect(m.docker.available).toBe(false);
+    expect(m.apps.map((a: { name: string; state: string; issues: string[] }) => [a.name, a.state, a.issues[0]])).toEqual([
+      ['npm', 'down', "Docker isn't running on this machine."],
+      ['comfy-gateway', 'down', "Docker isn't running on this machine."],
+    ]);
+    // Back again: they are simply up.
+    app.monitor.acceptReport(made.id, report({ containers: [container('npm'), container('comfy-gateway')] }));
+    expect((await machineView(cookie)).apps.map((a: { state: string }) => a.state)).toEqual(['up', 'up']);
+  });
+
+  it('calls a machine offline once its reports stop, without calling its apps broken', async () => {
+    const cookie = await signedIn();
+    const made = await addMachine(cookie);
+    vi.useFakeTimers({ now: Date.now(), toFake: ['Date'] });
+    app.monitor.acceptReport(made.id, report({ containers: [container('npm'), container('stopped', { state: 'exited', exitCode: 1 })] }));
+    let m = await machineView(cookie);
+    expect(m.online).toBe(true);
+    expect(m.apps.map((a: { state: string }) => a.state)).toEqual(['up', 'down']);
+    expect(m.apps[1].downSince).not.toBeNull();
+
+    vi.setSystemTime(Date.now() + 30_000); // a couple of reports missed: not yet
+    expect((await machineView(cookie)).online).toBe(true);
+    vi.setSystemTime(Date.now() + 60_000);
+    m = await machineView(cookie);
+    expect(m.online).toBe(false);
+    expect(m.host.hostname).toBe('pc'); // its last readings are still there to read
+    expect(m.apps.map((a: { state: string; downSince: number | null }) => [a.state, a.downSince])).toEqual([['off', null], ['off', null]]);
+
+    // What it last said survives the site restarting.
+    const reopened = new Monitor((app.monitor as unknown as { db: ReturnType<typeof openDb> }).db, config);
+    expect(reopened.view().machines[0]).toMatchObject({ online: false, host: { hostname: 'pc' } });
+  });
+
+  it('only tries addresses that could be on the internet', () => {
+    expect(isPublicName('comfy.example.com')).toBe(true);
+    for (const name of ['flexihome-probe', 'localhost', '10.0.0.5', 'nginx-proxy-manager', 'a..b.com', 'x.local1', '']) expect(isPublicName(name), name).toBe(false);
+    const defs = deriveMachineApps(3, { containers: [container('npm') as never], proxyHosts: [{ id: 1, domains: ['app.example.com'], host: 'npm', port: 81, scheme: 'http', enabled: true, ssl: true }], checks: [] });
+    expect(defs.map((d) => [d.key, d.hosts.map((h) => h.domains[0])])).toEqual([['m3/npm', ['app.example.com']]]);
   });
 });
 
