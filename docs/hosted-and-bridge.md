@@ -75,7 +75,8 @@ It works from state, not from a log of events. Each run:
 
 1. Reads both trees. On the browser side, Trash and any managed folder are
    left out entirely, so a bookmark moved to Trash reads as deleted and one
-   restored from it as new.
+   restored from it as new. Trash is found by Vivaldi's `trash: true` mark on
+   the folder, not its title (which is "Deleted" in Vivaldi 8.2).
 2. Maps the fixed top-level folders by role, then loads the stored **pairs**
    (browser id, server id, and the parent, title and address both sides had
    after the last run: the "base").
@@ -142,7 +143,8 @@ delivered by Vivaldi Sync as two bookmarks on both machines. So:
 
 ## Known gaps and ideas
 
-- Real Vivaldi has not been tried (see CLAUDE.md, "Where things stand").
+- Real Vivaldi has only been tried headless with a throwaway profile, never
+  with two machines on Vivaldi Sync (see CLAUDE.md, "Where things stand").
 - Two sibling folders with the same name in one parent: the second is treated
   as a duplicate and its contents are not synced.
 - Each open tab of the site holds one event stream. Over HTTP/1.1 a browser

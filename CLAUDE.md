@@ -10,18 +10,22 @@ read that before changing anything under `server/` or `src/bridge/`.
 - `main` is the original Vivaldi extension only. It is what the owner's PCs
   `git pull` to get the extension, and the only branch CI builds.
 - **`hosted` holds the hosted site, the Server tab and the two-way browser
-  bridge.** It is pushed but **not yet merged into `main`**. The owner also had
-  unpushed work on his own PC when `hosted` was pushed; that needs to reach
-  GitHub and be merged with `hosted` before `main` moves. Ask before merging
-  to or pushing `main`.
+  bridge.** It is pushed but **not yet merged into `main`**. The owner's PC
+  turned out to hold no unpushed work (only npm's lockfile churn), so `hosted`
+  is simply `main` plus its own commits and nothing else needs merging first.
+  Ask before merging to or pushing `main`.
 - The hosted site is deployed from `hosted` (see Deploying below).
 - Not yet done by the owner at the time of writing: the reverse-proxy host for
   the site, choosing the site password, linking a real Vivaldi to it.
-- **The bridge has never run in real Vivaldi.** It is tested in headless
-  Chromium with the real built extension, and against a simulated Vivaldi Sync
-  in unit tests. Two things are assumptions until seen for real: that Vivaldi's
-  Trash is a folder titled `Trash` at depth 1 or 2 of the bookmark tree, and
-  how quickly Vivaldi Sync delivers a bookmark to the other machine.
+- **The bridge has run in real Vivaldi (8.2 on Windows), but only headless,
+  with a throwaway profile and a throwaway server.** Linking, both directions
+  of sync, the trash, the big-deletion question, the new-tab redirect and
+  unlinking all worked there. That run found that Vivaldi's trash is a
+  top-level folder titled "Deleted", not "Trash"; it is marked `trash: true`,
+  and the code now goes by that flag (`isTrash` in `src/lib/tree.ts`). Still
+  not seen for real: two machines sharing bookmarks through Vivaldi Sync (how
+  quickly it delivers, and that nothing doubles), the browser's permission
+  prompt when linking, and the owner's own profile and site.
 
 ## One codebase, two builds
 
@@ -115,6 +119,14 @@ src/components/SignIn.svelte, HostedSettings.svelte                      hosted-
   `--headless=new`, `--load-extension=<dir>`. `chrome.permissions.request`
   cannot be clicked there, so copy `dist/` and add `host_permissions` for the
   test origin to the copy's manifest.
+- Real Vivaldi can be driven too, but not launched by Playwright (that
+  hangs). Start it yourself with `--user-data-dir=<scratch> --headless=new
+  --remote-debugging-port=9333 --load-extension=<dir>
+  --disable-extensions-except=<dir>
+  --disable-features=DisableLoadExtensionCommandLineSwitch about:blank` and
+  attach with `chromium.connectOverCDP`. Reuse the tab that is open: asking
+  for a new page never returns. Run `chrome.*` calls from `bridge.html`,
+  because the worker goes to sleep.
 - Playwright's `waitForFunction` with an `async` predicate resolves at once
   (a pending promise is truthy). Poll from Node instead, or the check passes
   while measuring nothing.
