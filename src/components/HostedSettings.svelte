@@ -2,7 +2,7 @@
   // Settings that only exist on the hosted site: which browsers are linked,
   // backups of the bookmarks, and the account itself.
   import Icon from './Icon.svelte';
-  import { api, signOut } from '../lib/backend.svelte';
+  import { api, refreshSession, signOut } from '../lib/backend.svelte';
   import { ago } from '../lib/format';
   import { panel, toast } from '../lib/ui.svelte';
 
@@ -19,7 +19,19 @@
     reason: string;
   }
 
+  interface Machine {
+    id: number;
+    name: string;
+    createdAt: number;
+    seenAt: number | null;
+  }
+
   let bridges = $state<Bridge[]>([]);
+  let machines = $state<Machine[]>([]);
+  let adding = $state(false);
+  let machineName = $state('');
+  /** A key just made. The site keeps only a fingerprint of it, so this is the one time it can be shown. */
+  let fresh = $state<{ name: string; key: string } | null>(null);
   let snapshots = $state<Snapshot[]>([]);
   let showAll = $state(false);
   let changing = $state(false);
@@ -31,9 +43,10 @@
 
   async function load() {
     try {
-      [{ bridges }, { snapshots }] = await Promise.all([
+      [{ bridges }, { snapshots }, { machines }] = await Promise.all([
         api<{ bridges: Bridge[] }>('/api/bridges'),
         api<{ snapshots: Snapshot[] }>('/api/snapshots'),
+        api<{ machines: Machine[] }>('/api/machines'),
       ]);
     } catch (e) {
       say(e);
@@ -49,6 +62,37 @@
     if (!confirm(`Unlink “${b.name}”? Its bookmarks stay as they are, but stop following this site.`)) return;
     await api(`/api/bridges/${b.id}`, { method: 'DELETE', body: {} }).catch(say);
     await load();
+  }
+
+  async function addMachine(e: SubmitEvent) {
+    e.preventDefault();
+    try {
+      const made = await api<{ name: string; key: string }>('/api/machines', { method: 'POST', body: { name: machineName } });
+      fresh = { name: made.name, key: made.key };
+      adding = false;
+      machineName = '';
+      // The Server tab only exists once there is something to show on it.
+      await Promise.all([load(), refreshSession()]);
+    } catch (err) {
+      say(err);
+    }
+  }
+
+  async function removeMachine(m: Machine) {
+    if (!confirm(`Remove “${m.name}”? Its key stops working and its history here is deleted. Nothing on the machine itself changes.`)) return;
+    await api(`/api/machines/${m.id}`, { method: 'DELETE', body: {} }).catch(say);
+    if (fresh?.name === m.name) fresh = null;
+    await load();
+  }
+
+  async function copyKey() {
+    if (!fresh) return;
+    try {
+      await navigator.clipboard.writeText(fresh.key);
+      toast('Key copied.');
+    } catch {
+      toast("Couldn't copy it; select the key and copy it by hand.");
+    }
   }
 
   async function saveNow() {
@@ -107,6 +151,51 @@
       None yet. Install the FlexiHome extension in a browser and link it to this site to keep that browser's bookmarks in step with
       the ones here, in both directions.
     </p>
+  {/if}
+</section>
+
+<section>
+  <h3>Other machines</h3>
+  <p class="note">
+    A PC or another server can show up on the Server tab beside this one. It runs a small agent that reports in, so nothing has to be
+    opened up on its side, and when it is switched off it simply shows as offline.
+  </p>
+  {#if machines.length}
+    <ul class="list">
+      {#each machines as m (m.id)}
+        <li>
+          <span class="grow">
+            <strong>{m.name}</strong>
+            <small>{m.seenAt ? `Last heard from ${ago(m.seenAt)}` : 'Not heard from yet'}</small>
+          </span>
+          <button class="icon-btn danger" title="Remove {m.name}" aria-label="Remove {m.name}" onclick={() => removeMachine(m)}><Icon name="x" size={15} /></button>
+        </li>
+      {/each}
+    </ul>
+  {/if}
+  {#if fresh}
+    <div class="key" role="status">
+      <p><strong>Key for {fresh.name}.</strong> Copy it now: it can't be shown again.</p>
+      <code>{fresh.key}</code>
+      <div class="row">
+        <button class="btn small" onclick={copyKey}>Copy key</button>
+        <button class="btn small" onclick={() => (fresh = null)}>Done</button>
+      </div>
+      <p class="note">On that machine, from a copy of FlexiHome: <code class="inline">scripts\install-agent.ps1 -Url {location.origin} -Key &lt;the key&gt;</code> (Windows). The README has the rest.</p>
+    </div>
+  {/if}
+  {#if adding}
+    <form class="pw" onsubmit={addMachine}>
+      <label class="field"><span>What to call it</span><input class="input" bind:value={machineName} maxlength="60" placeholder="Desktop PC" required /></label>
+      <div class="row">
+        <button class="btn primary">Make its key</button>
+        <button class="btn" type="button" onclick={() => (adding = false)}>Cancel</button>
+      </div>
+    </form>
+  {:else}
+    <div class="row">
+      <button class="btn" onclick={() => (adding = true)}><Icon name="plus" size={15} /> Add a machine</button>
+    </div>
   {/if}
 </section>
 
@@ -219,6 +308,24 @@
   .pw {
     display: grid;
     gap: 10px;
+  }
+  .key {
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+  }
+  .key p {
+    margin: 0;
+  }
+  .key code {
+    font-size: 12.5px;
+    overflow-wrap: anywhere;
+    user-select: all;
+  }
+  .key code.inline {
+    user-select: text;
   }
   .pw .input {
     font-size: 16px;

@@ -16,6 +16,30 @@ export interface HostInfo {
   disk: { total: number; used: number };
   net: { rx: number; tx: number };
   rebootRequired: boolean;
+  // The rest only comes from a machine that reports in through the agent.
+  /** win32, linux, darwin. */
+  platform?: string;
+  cpuModel?: string;
+  /** 0–1 for each logical core. */
+  perCore?: number[];
+  disks?: DiskInfo[];
+  gpus?: GpuInfo[];
+}
+
+export interface DiskInfo {
+  name: string;
+  total: number;
+  used: number;
+}
+
+export interface GpuInfo {
+  name: string;
+  util: number;
+  memUsed: number;
+  memTotal: number;
+  temp: number | null;
+  power: number | null;
+  fan: number | null;
 }
 
 export interface ContainerInfo {
@@ -37,7 +61,8 @@ export interface ContainerInfo {
   networks: string[];
 }
 
-export type AppState = 'up' | 'degraded' | 'down';
+/** 'off': on a machine that has stopped reporting, so nobody can say. */
+export type AppState = 'up' | 'degraded' | 'down' | 'off';
 
 export interface AppView {
   key: string;
@@ -61,15 +86,41 @@ export interface AppView {
 
 export interface MonitorView {
   available: boolean;
+  /** The site's own machine is being read; false when only other machines report in. */
+  probe: boolean;
   ts: number;
   stale: boolean;
   errors: string[];
   host: HostInfo | null;
   apps: AppView[];
+  /** Other machines that report in through the agent. */
+  machines: MachineView[];
 }
 
-/** [time, cpu share, memory share, bytes in per second, bytes out per second, load] */
-export type Sample = [number, number, number, number, number, number];
+export interface MachineView {
+  id: number;
+  name: string;
+  /** When it last reported; 0 if it never has. */
+  ts: number;
+  online: boolean;
+  agent: { version: string; interval: number } | null;
+  host: HostInfo | null;
+  docker: { available: boolean; error: string };
+  errors: string[];
+  apps: AppView[];
+  /** Share of the time the machine itself was on and reporting. */
+  uptime24h: number | null;
+  uptime7d: number | null;
+  uptime30d: number | null;
+  hours: (number | null)[];
+  days: (number | null)[];
+}
+
+/**
+ * [time, cpu share, memory share, bytes in per second, bytes out per second, load], and for a machine that reports in,
+ * its first graphics card: [..., how busy (0–1), memory in use (0–1), temperature]. Those three are null with no card.
+ */
+export type Sample = [number, number, number, number, number, number, (number | null)?, (number | null)?, (number | null)?];
 export type Range = '1h' | '24h' | '7d';
 
 const LIVE_MS = 5_000;
@@ -78,6 +129,8 @@ class MonitorStore {
   view = $state.raw<MonitorView | null>(null);
   samples = $state.raw<Sample[]>([]);
   range = $state<Range>('1h');
+  /** Whose history samples holds: a machine that reports in, or null for the site's own. */
+  machine = $state<number | null>(null);
   error = $state('');
 
   #timers: ReturnType<typeof setInterval>[] = [];
@@ -98,6 +151,13 @@ class MonitorStore {
 
   setRange(range: Range) {
     this.range = range;
+    void this.#history();
+  }
+
+  setMachine(machine: number | null) {
+    if (machine === this.machine) return;
+    this.machine = machine;
+    this.samples = [];
     void this.#history();
   }
 
@@ -128,9 +188,10 @@ class MonitorStore {
 
   async #history() {
     const range = this.range;
+    const machine = this.machine;
     try {
-      const h = await api<{ samples: Sample[] }>(`/api/monitor/history?range=${range}`);
-      if (range === this.range) this.samples = h.samples;
+      const h = await api<{ samples: Sample[] }>(`/api/monitor/history?range=${range}${machine === null ? '' : `&machine=${machine}`}`);
+      if (range === this.range && machine === this.machine) this.samples = h.samples;
     } catch {
       // The live poll already reports a lost connection.
     }
