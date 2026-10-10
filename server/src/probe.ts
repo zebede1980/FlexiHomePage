@@ -5,10 +5,14 @@
 // process never has that access itself.
 
 import { readFile, readdir, statfs } from 'node:fs/promises';
-import { existsSync, statSync } from 'node:fs';
-import { createServer, request } from 'node:http';
+import { existsSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { join } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
+import { readContainers, type ContainerInfo } from './docker.js';
+import { readProxyHosts, type ProxyHost } from './npm-db.js';
+
+export type { ContainerInfo } from './docker.js';
+export type { ProxyHost } from './npm-db.js';
 
 const env = process.env;
 const PORT = Number(env.PORT ?? 9100);
@@ -35,40 +39,6 @@ export interface HostInfo {
   /** Bytes per second on the machine's real network cards. */
   net: { rx: number; tx: number };
   rebootRequired: boolean;
-}
-
-export interface ContainerInfo {
-  id: string;
-  name: string;
-  image: string;
-  /** Compose project and service, when it was started by Compose. */
-  project: string;
-  service: string;
-  /** Docker's state word: running, exited, restarting, paused, created, dead. */
-  state: string;
-  /** Docker's own sentence, e.g. "Up 3 days (healthy)". */
-  status: string;
-  /** healthy, unhealthy, starting, or '' when the container defines no health check. */
-  health: string;
-  startedAt: number | null;
-  finishedAt: number | null;
-  exitCode: number | null;
-  restarts: number;
-  /** 0–1 of all the machine's cores. */
-  cpu: number;
-  mem: number;
-  ports: number[];
-  networks: string[];
-}
-
-export interface ProxyHost {
-  id: number;
-  domains: string[];
-  host: string;
-  port: number;
-  scheme: string;
-  enabled: boolean;
-  ssl: boolean;
 }
 
 export interface Snapshot {
@@ -182,140 +152,6 @@ async function readHost(now: number): Promise<HostInfo> {
   };
 }
 
-// ---- docker -----------------------------------------------------------------
-
-function docker<T>(path: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const req = request({ socketPath: DOCKER_SOCK, path, method: 'GET', timeout: 8000 }, (res) => {
-      const chunks: Buffer[] = [];
-      res.on('data', (c: Buffer) => chunks.push(c));
-      res.on('end', () => {
-        const body = Buffer.concat(chunks).toString('utf8');
-        if ((res.statusCode ?? 500) >= 400) return reject(new Error(`Docker said ${res.statusCode} for ${path}`));
-        try {
-          resolve(JSON.parse(body) as T);
-        } catch (e) {
-          reject(e as Error);
-        }
-      });
-    });
-    req.on('timeout', () => req.destroy(new Error(`Docker didn't answer ${path} in time`)));
-    req.on('error', reject);
-    req.end();
-  });
-}
-
-interface DockerListItem {
-  Id: string;
-  Names: string[];
-  Image: string;
-  State: string;
-  Status: string;
-  Labels: Record<string, string>;
-  Ports: { PrivatePort: number; PublicPort?: number }[];
-  NetworkSettings?: { Networks?: Record<string, unknown> };
-}
-
-interface DockerInspect {
-  RestartCount: number;
-  State: { StartedAt: string; FinishedAt: string; ExitCode: number; Health?: { Status: string } };
-}
-
-interface DockerStats {
-  cpu_stats: { cpu_usage: { total_usage: number }; system_cpu_usage?: number; online_cpus?: number };
-  memory_stats: { usage?: number; stats?: Record<string, number> };
-}
-
-const lastUsage = new Map<string, { usage: number; system: number }>();
-
-const when = (iso: string): number | null => {
-  const t = Date.parse(iso);
-  return Number.isFinite(t) && t > 0 ? t : null;
-};
-
-async function readContainers(): Promise<ContainerInfo[]> {
-  const list = await docker<DockerListItem[]>('/containers/json?all=1');
-  const seen = new Set<string>();
-  const out = await Promise.all(
-    list.map(async (c): Promise<ContainerInfo> => {
-      seen.add(c.Id);
-      const running = c.State === 'running';
-      const [inspect, stats] = await Promise.all([
-        docker<DockerInspect>(`/containers/${c.Id}/json`).catch(() => null),
-        running ? docker<DockerStats>(`/containers/${c.Id}/stats?stream=false&one-shot=true`).catch(() => null) : null,
-      ]);
-
-      let cpu = 0;
-      let mem = 0;
-      if (stats) {
-        const usage = stats.cpu_stats.cpu_usage.total_usage;
-        const system = stats.cpu_stats.system_cpu_usage ?? 0;
-        const prev = lastUsage.get(c.Id);
-        // Both counters are nanoseconds; the system one covers every core, so the ratio is already a share of the machine.
-        if (prev && system > prev.system) cpu = (usage - prev.usage) / (system - prev.system);
-        lastUsage.set(c.Id, { usage, system });
-        // Same sum as `docker stats`: page cache that could be dropped isn't counted.
-        const ms = stats.memory_stats;
-        mem = Math.max(0, (ms.usage ?? 0) - (ms.stats?.inactive_file ?? ms.stats?.total_inactive_file ?? 0));
-      }
-
-      return {
-        id: c.Id.slice(0, 12),
-        name: (c.Names[0] ?? c.Id.slice(0, 12)).replace(/^\//, ''),
-        image: c.Image,
-        project: c.Labels['com.docker.compose.project'] ?? '',
-        service: c.Labels['com.docker.compose.service'] ?? '',
-        state: c.State,
-        status: c.Status,
-        health: inspect?.State.Health?.Status ?? '',
-        startedAt: inspect ? when(inspect.State.StartedAt) : null,
-        finishedAt: inspect && !running ? when(inspect.State.FinishedAt) : null,
-        exitCode: inspect && !running ? inspect.State.ExitCode : null,
-        restarts: inspect?.RestartCount ?? 0,
-        cpu: Math.min(1, Math.max(0, cpu)),
-        mem,
-        ports: [...new Set(c.Ports.map((p) => p.PrivatePort))].sort((a, b) => a - b),
-        networks: Object.keys(c.NetworkSettings?.Networks ?? {}),
-      };
-    }),
-  );
-  for (const id of lastUsage.keys()) if (!seen.has(id)) lastUsage.delete(id);
-  return out.sort((a, b) => a.name.localeCompare(b.name));
-}
-
-// ---- reverse proxy ----------------------------------------------------------
-
-/** Nginx Proxy Manager keeps its hosts in SQLite; reading it tells us which address reaches which container. */
-function readProxyHosts(): ProxyHost[] {
-  // Compose mounts /dev/null here when no database was configured.
-  if (!NPM_DB || !statSync(NPM_DB, { throwIfNoEntry: false })?.isFile()) return [];
-  const db = new DatabaseSync(NPM_DB, { readOnly: true });
-  try {
-    const rows = db
-      .prepare('SELECT id, domain_names, forward_scheme, forward_host, forward_port, enabled, certificate_id FROM proxy_host WHERE is_deleted = 0 ORDER BY id')
-      .all() as unknown as {
-      id: number;
-      domain_names: string;
-      forward_scheme: string;
-      forward_host: string;
-      forward_port: number;
-      enabled: number;
-      certificate_id: number | null;
-    }[];
-    return rows.map((r) => ({
-      id: r.id,
-      domains: JSON.parse(r.domain_names) as string[],
-      host: r.forward_host,
-      port: r.forward_port,
-      scheme: r.forward_scheme,
-      enabled: r.enabled === 1,
-      ssl: (r.certificate_id ?? 0) > 0,
-    }));
-  } finally {
-    db.close();
-  }
-}
-
 // ---- loop -------------------------------------------------------------------
 
 let latest: Snapshot = { ts: 0, host: null, containers: [], proxyHosts: [], errors: ['Starting…'] };
@@ -328,10 +164,10 @@ async function sample() {
     return null;
   };
   const host = await readHost(now).catch(note('host'));
-  const containers = await readContainers().catch(note('docker'));
+  const containers = await readContainers(DOCKER_SOCK).catch(note('docker'));
   let proxyHosts: ProxyHost[] = latest.proxyHosts;
   try {
-    proxyHosts = readProxyHosts();
+    proxyHosts = readProxyHosts(NPM_DB);
   } catch (e) {
     note('proxy hosts')(e);
   }
