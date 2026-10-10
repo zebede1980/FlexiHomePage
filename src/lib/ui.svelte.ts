@@ -60,6 +60,18 @@ export function endDrag() {
   clearHint();
 }
 
+/**
+ * Keeps one of the page's own drags from reaching listeners on `document`.
+ * Browser extensions that add drag gestures to every web page (Super Drag and
+ * Go, for one) listen there and ask for a "copy" drop; our drags only allow
+ * "move", so the browser shows the no-entry cursor and never fires the drop.
+ * Only the hosted site meets this: extensions can't inject into another
+ * extension's pages. Put it on <body>, so it runs after the page's own handlers.
+ */
+export function keepDragPrivate(e: DragEvent) {
+  if (drag.item) e.stopPropagation();
+}
+
 /** Which half (or middle third, for folders) of `el` the pointer is over. */
 export function dropEdge(e: DragEvent, el: HTMLElement, axis: 'x' | 'y' = 'y', allowInside = false): DropEdge {
   const r = el.getBoundingClientRect();

@@ -71,7 +71,8 @@
   });
 </script>
 
-<svelte:window onscroll={() => preview.close()} ondragstart={() => preview.close()} onpointerdown={() => preview.close()} onkeydown={() => preview.close()} />
+<!-- Capture: the page's own drags are stopped at <body> (keepDragPrivate), so they never bubble this far. -->
+<svelte:window onscroll={() => preview.close()} ondragstartcapture={() => preview.close()} onpointerdown={() => preview.close()} onkeydown={() => preview.close()} />
 
 <div
   bind:this={box}

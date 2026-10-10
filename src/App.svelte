@@ -19,7 +19,7 @@
   import { spotlight } from './lib/fx/pointer';
   import { TODO_CARD_KEY, arrangeColumns, moveBetweenColumns, withDefaultPlace } from './lib/layout';
   import { collectLinks, depthOf, isFolder, pathKey, pathTo, resolveHome, visibleChildren, type BNode } from './lib/tree';
-  import { clearHint, drag, endDrag, hint, openDialog, panel, setHint } from './lib/ui.svelte';
+  import { clearHint, drag, endDrag, hint, keepDragPrivate, openDialog, panel, setHint } from './lib/ui.svelte';
 
   const s = $derived(settings.value);
   const look = $derived(styleDef(s.style));
@@ -168,6 +168,7 @@
 <Backdrop style={look.id} {theme} {accent} css={background} animate={s.effects} />
 
 <svelte:window onhashchange={() => (wanted = readView())} />
+<svelte:body ondragstart={keepDragPrivate} ondragover={keepDragPrivate} />
 
 {#if hasServerTab}
   <nav class="tabs glass" aria-label="Sections">
