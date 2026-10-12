@@ -7,14 +7,13 @@ read that before changing anything under `server/` or `src/bridge/`.
 
 ## Where things stand (October 2026)
 
-- `main` is the original Vivaldi extension only. It is what the owner's PCs
-  `git pull` to get the extension, and the only branch CI builds.
-- **`hosted` holds the hosted site, the Server tab and the two-way browser
-  bridge.** It is pushed but **not yet merged into `main`**. The owner's PC
-  turned out to hold no unpushed work (only npm's lockfile churn), so `hosted`
-  is simply `main` plus its own commits and nothing else needs merging first.
-  Ask before merging to or pushing `main`.
-- The hosted site is deployed from `hosted` (see Deploying below).
+- **Everything is on `main`**: the extension, the hosted site, the Server tab
+  and the two-way browser bridge. The `hosted` branch they were built on was
+  merged on 12 October 2026 and is no longer used; don't commit to it.
+- `main` is what the owner's PCs `git pull` to get the extension (from the
+  tracked `extension/` folder, not the ignored `dist/`), and the only branch
+  CI builds. A push to `main` reaches those PCs on their next pull.
+- The hosted site is deployed from `main` (see Deploying below).
 - Not yet done by the owner at the time of writing: the reverse-proxy host for
   the site, choosing the site password, linking a real Vivaldi to it.
 - **The bridge has run in real Vivaldi (8.2 on Windows), but only headless,
@@ -180,19 +179,16 @@ GitHub Actions rebuilds the extension after every push to `main` and commits
 it to `extension/` (`.github/workflows/build.yml`). So the local branch falls
 one commit behind after each push.
 
-- **Before starting any session of work:** `git fetch`, `git status -sb`, and
-  check which branch the work belongs on (see "Where things stand"). On `main`,
-  `git pull` first and confirm it isn't behind `origin/main`.
+- **Before starting any session of work:** `git fetch`, `git status -sb`, then
+  `git pull` and confirm `main` isn't behind `origin/main`.
 - **After every push to `main`:** give the "Build extension" workflow a minute,
   then `git pull` to fetch its `chore: build extension from …` commit before the
   next commit or push. If a push is rejected as non-fast-forward, this is why.
 - Pulls should rebase: `git config pull.rebase true` (already set on the main
   dev PC; set it on any fresh clone you develop from).
 - Never edit or commit `extension/` by hand; the workflow owns it. Local builds
-  go to the ignored `dist/`. The workflow does not run for `hosted`, so that
-  branch's `extension/` folder is still the old extension: to try the bridge
-  from that branch, build locally and load `dist/`.
-- When `hosted` is merged into `main`, the workflow's `npm run check` and
-  `npm test` now also cover the server (Node 22's built-in SQLite), and
-  `npm run build` still produces the extension in `dist/`, so the workflow
-  needs no change.
+  go to the ignored `dist/`, which a pull never changes: a PC that only uses
+  the extension should load `extension/`, or it stays on whatever was last
+  built there.
+- The workflow's `npm run check` and `npm test` also cover the server (Node
+  22's built-in SQLite), so a failing server test stops the extension build.
