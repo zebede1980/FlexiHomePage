@@ -1,18 +1,21 @@
 {
   "manifest_version": 3,
   "name": "FlexiHome",
-  "version": "0.1.0",
-  "description": "A customisable new-tab home page built on your Vivaldi bookmarks.",
+  "version": "0.2.0",
+  "description": "A customisable new-tab home page built on your bookmarks, which can keep them in step with a FlexiHome site you host.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqDZSEodJr2Mgqj4rECWjEqfiHqawq6i4EQcaoGN5dDSAezlPwn3XqNkYNG1uoAMliqe7+lLJOLKlj9+TlcYMqWTmMtFLUWZ1lLdJ4u+bTj2VrEzqzhs2WqklWi7YhGpqbhuDOTtk7KVOmDB5/dJOeaWCMHOB/L1wdfAANgxD/Zg7T72NEmZ1bkFCZo1fcwQ11xUEBxT7l1MG0k0aweS2tRSAegZamRsirgf5b8ujwXNsBPKqzypmNYyhGI7hZN+vGtuCP4rePDj6c/IqqQAZwCRQSpYJ0qj4YTVVgjS2I0X3lCTttk2Qk3obMpggli8fsd9OddQPRYvjcGvUhwY1vwIDAQAB",
   "chrome_url_overrides": {
     "newtab": "newtab.html"
   },
   "permissions": [
     "bookmarks",
-    "favicon"
+    "favicon",
+    "storage",
+    "alarms"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "action": {
     "default_title": "Open FlexiHome",
@@ -26,5 +29,13 @@
     "32": "icons/icon-32.png",
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
+  },
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://*/*"
+  ],
+  "options_ui": {
+    "page": "bridge.html",
+    "open_in_tab": true
   }
 }

@@ -1,0 +1,1 @@
+var e={newTabSite:!0,solo:!1},t={phase:`idle`,at:0,seenAt:0,message:``,summary:null,primary:!1,holder:``},n=e=>chrome.runtime.sendMessage(e);export{t as n,n as r,e as t};
