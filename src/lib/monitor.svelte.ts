@@ -16,6 +16,8 @@ export interface HostInfo {
   disk: { total: number; used: number };
   net: { rx: number; tx: number };
   rebootRequired: boolean;
+  /** The last automatic update run; only the site's own machine has this, and only when its update job writes one. */
+  updates?: UpdateRun | null;
   // The rest only comes from a machine that reports in through the agent.
   /** win32, linux, darwin. */
   platform?: string;
@@ -24,6 +26,17 @@ export interface HostInfo {
   perCore?: number[];
   disks?: DiskInfo[];
   gpus?: GpuInfo[];
+}
+
+export interface UpdateRun {
+  state: 'running' | 'done';
+  ok: boolean;
+  started: number;
+  finished: number | null;
+  upgraded: number | null;
+  failed: string[];
+  rebooted: boolean;
+  next: number | null;
 }
 
 export interface DiskInfo {

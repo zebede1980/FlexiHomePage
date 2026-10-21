@@ -8,6 +8,7 @@
   import { ago, bytes, duration, percent, uptimeShare } from '../lib/format';
   import { monitor, type AppState, type AppView, type HostInfo, type MachineView, type Range } from '../lib/monitor.svelte';
   import { toast } from '../lib/ui.svelte';
+  import { VERDICTS, updateVerdict } from '../lib/updates';
 
   $effect(() => monitor.watch());
 
@@ -148,9 +149,27 @@
   const gpus = $derived(host?.gpus ?? []);
   const shortGpu = (name: string) => name.replace(/^(NVIDIA|AMD|Intel(\(R\))?)\s+/i, '').replace(/^GeForce\s+/i, '');
 
+  const dayTime = (ts: number) => new Date(ts).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
   /** When the machine last started, worked out from how long it has been up. */
-  const bootedAt = (uptime: number, at: number) =>
-    new Date(at - uptime * 1000).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const bootedAt = (uptime: number, at: number) => dayTime(at - uptime * 1000);
+
+  // The last automatic update run: only the site's own machine reports one, and only when its update job writes it.
+  const updates = $derived(!remote ? (host?.updates ?? null) : null);
+  const updateTile = $derived.by(() => {
+    if (!updates) return null;
+    const u = updates;
+    const verdict = updateVerdict(u, Date.now());
+    const count = u.upgraded === null ? '' : `${u.upgraded} package${u.upgraded === 1 ? '' : 's'} updated`;
+    const next = u.next ? `Next due ${dayTime(u.next)}` : '';
+    const lines: Record<typeof verdict, [string, string]> = {
+      ok: [`Ran ${dayTime(u.finished ?? u.started)}`, [count, u.rebooted ? 'restarted' : 'no restart needed'].filter(Boolean).join(' · ')],
+      running: [`Started ${ago(u.started)}`, 'The outcome shows here once it finishes'],
+      failed: [`${u.failed.join(', ') || 'A step'} failed, ${dayTime(u.finished ?? u.started)}`, "Worth a look at the update job's log"],
+      stuck: [`Started ${ago(u.started)} and hasn't finished`, "Worth a look at the update job's log"],
+      overdue: [`Last ran ${ago(u.finished ?? u.started)}`, u.next ? `It was due ${dayTime(u.next)}` : 'It should run weekly'],
+    };
+    return { verdict, ...VERDICTS[verdict], lines: lines[verdict], next: verdict === 'ok' || verdict === 'failed' ? next : '' };
+  });
 
   const series = (i: 1 | 2 | 6 | 8) => samples.flatMap((s): [number, number][] => (typeof s[i] === 'number' ? [[s[0], s[i] as number]] : []));
   const traffic = $derived(samples.map((s): [number, number] => [s[0], s[3] + s[4]]));
@@ -233,7 +252,7 @@
     {/if}
 
     {#if host}
-      <section class="tiles" class:six={gpus.length > 0} class:stale={offline} aria-label="{current.name}: resources">
+      <section class="tiles" class:six={gpus.length > 0 || !!updateTile} class:stale={offline} aria-label="{current.name}: resources">
         <article class="tile glass">
           <h2>{offline ? 'Was running for' : 'Uptime'}</h2>
           <p class="value words">{duration(host.uptime)}</p>
@@ -314,6 +333,19 @@
           <p class="sub">{bytes(host.net.rx, true)} in · {bytes(host.net.tx, true)} out</p>
           <Sparkline points={traffic} format={(v) => bytes(v, true)} label="Network traffic, in and out together" />
         </article>
+
+        {#if updateTile}
+          <article class="tile glass updates" class:problem={updateTile.problem}>
+            <h2>Updates</h2>
+            <p class="value words">{updateTile.label}</p>
+            <p class="sub" class:flag={updateTile.problem}>
+              {#if updateTile.problem}<Icon name="alert" size={13} />{/if}
+              <span>{updateTile.lines[0]}</span>
+            </p>
+            <p class="sub free">{updateTile.lines[1]}</p>
+            {#if updateTile.next}<p class="sub free">{updateTile.next}</p>{/if}
+          </article>
+        {/if}
 
         {#each gpus as g, i (i)}
           {@const vram = part(g.memUsed, g.memTotal)}
@@ -655,6 +687,9 @@
   .sub.free {
     margin: 6px 0 0;
   }
+  .updates.problem .value {
+    color: var(--st-warn);
+  }
   /* The track is a pale step of the fill's own colour, so the state reads along the whole bar. */
   .meter {
     --fill: var(--accent);
@@ -940,7 +975,8 @@
     .tile {
       padding: 14px 14px 12px;
     }
-    .tile:first-child {
+    .tile:first-child,
+    .tile.updates {
       grid-column: 1 / -1;
     }
     .value {

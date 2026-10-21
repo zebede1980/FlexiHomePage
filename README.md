@@ -96,6 +96,25 @@ address is then checked through the proxy every two minutes (any answer below
 a container that no longer exists are listed as down. Rename an app, give it a
 different link or hide it from its row's menu.
 
+#### Update status
+
+An **Updates** tile shows how the machine's last automatic update run went:
+all good, failed (and which step), still running, stuck, or overdue (the
+next run never came). The probe can't ask apt or systemd, so the update job
+itself leaves its outcome in `/var/lib/flexihome/updates.json` (change the
+path with `UPDATES_FILE` on the probe; it is read under the host's `/`). No
+file, no tile. The job writes `{"state":"running","started":"…"}` when it
+begins and this when it ends:
+
+```json
+{"state":"done","ok":true,"started":"2026-10-18T04:03:27Z","finished":"2026-10-18T04:05:33Z",
+ "upgraded":11,"failed":[],"rebooted":false,"next":"2026-10-25T04:00:00Z"}
+```
+
+`failed` lists the steps that went wrong in the job's own words; `upgraded`
+and `next` may be `null`. Without `next`, a run older than eight days counts
+as overdue.
+
 The probe is the only thing given the Docker socket and the host's `/proc`,
 `/sys` and `/` (all read-only). It has no published port, sits on a network
 with no route out, and offers nothing but a read-only summary to the web

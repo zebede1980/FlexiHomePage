@@ -63,6 +63,7 @@ server/src/bookmarks.ts  the bookmark tree (SQLite), batches, backups (snapshots
 server/src/auth.ts       one password, browser sessions, bridge keys, slow-down on wrong guesses
 server/src/monitor.ts    Server tab data: app health, address checks, uptime, history
 server/src/probe.ts      separate process: reads host /proc, /sys, Docker, the proxy's host list
+server/src/updates.ts    the update job's status file the probe reads (README, "Update status")
 server/src/docker.ts, npm-db.ts   reading containers and proxy hosts; shared by the probe and the agent
 server/src/machines.ts   other machines that report in: their keys, and the checking of what they send
 server/src/agent.ts, agent-lib.ts   separate program run ON those machines; Node built-ins only

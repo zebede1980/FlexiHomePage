@@ -10,9 +10,11 @@ import { createServer } from 'node:http';
 import { join } from 'node:path';
 import { readContainers, type ContainerInfo } from './docker.js';
 import { readProxyHosts, type ProxyHost } from './npm-db.js';
+import { parseUpdateRun, type UpdateRun } from './updates.js';
 
 export type { ContainerInfo } from './docker.js';
 export type { ProxyHost } from './npm-db.js';
+export type { UpdateRun } from './updates.js';
 
 const env = process.env;
 const PORT = Number(env.PORT ?? 9100);
@@ -21,6 +23,7 @@ const SYS = env.HOST_SYS ?? '/sys';
 const ROOT = env.HOST_ROOT ?? '/';
 const DOCKER_SOCK = env.DOCKER_SOCK ?? '/var/run/docker.sock';
 const NPM_DB = env.NPM_DB ?? '';
+const UPDATES_FILE = env.UPDATES_FILE ?? '/var/lib/flexihome/updates.json';
 const INTERVAL_MS = Number(env.PROBE_INTERVAL_MS ?? 10_000);
 
 export interface HostInfo {
@@ -39,6 +42,8 @@ export interface HostInfo {
   /** Bytes per second on the machine's real network cards. */
   net: { rx: number; tx: number };
   rebootRequired: boolean;
+  /** The last automatic update run, when the machine's update job reports one. */
+  updates?: UpdateRun | null;
 }
 
 export interface Snapshot {
@@ -108,7 +113,7 @@ let lastCpu: CpuTimes | null = null;
 let lastNet: { rx: number; tx: number; at: number } | null = null;
 
 async function readHost(now: number): Promise<HostInfo> {
-  const [{ times, cores }, { mem, swap }, loadRaw, uptimeRaw, fs, net, os, hostname, kernel] = await Promise.all([
+  const [{ times, cores }, { mem, swap }, loadRaw, uptimeRaw, fs, net, os, hostname, kernel, updates] = await Promise.all([
     cpuTimes(),
     memInfo(),
     read(join(PROC, 'loadavg')),
@@ -118,6 +123,7 @@ async function readHost(now: number): Promise<HostInfo> {
     osName(),
     read(join(ROOT, 'etc/hostname')).then((s) => s.trim()).catch(() => ''),
     read(join(PROC, 'sys/kernel/osrelease')).then((s) => s.trim()).catch(() => ''),
+    read(join(ROOT, UPDATES_FILE)).then(parseUpdateRun).catch(() => null),
   ]);
 
   let cpu = 0;
@@ -149,6 +155,7 @@ async function readHost(now: number): Promise<HostInfo> {
     disk: { total: diskTotal - (fs.bfree - fs.bavail) * fs.bsize, used: diskTotal - fs.bfree * fs.bsize },
     net: rate,
     rebootRequired: existsSync(join(ROOT, 'var/run/reboot-required')) || existsSync(join(ROOT, 'run/reboot-required')),
+    updates,
   };
 }
 
