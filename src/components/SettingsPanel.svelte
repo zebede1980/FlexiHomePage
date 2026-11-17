@@ -2,13 +2,34 @@
   import HostedSettings from './HostedSettings.svelte';
   import Icon, { type IconName } from './Icon.svelte';
   import { hosted, mode } from '../lib/backend.svelte';
+  import { link as ltLink, lt, unlink as ltUnlink } from '../lib/lifetracker.svelte';
   import { BACKGROUNDS, IMAGE_BACKGROUND } from '../lib/backgrounds';
   import { bookmarks } from '../lib/bookmarks.svelte';
   import { ACCENTS, SEARCH_ENGINES, type Settings, type ThemeMode } from '../lib/settings';
   import { settings } from '../lib/settings-store.svelte';
   import { STYLES, styleDef } from '../lib/styles';
   import { listFolders, pathKey, SETTINGS_FOLDER_TITLE } from '../lib/tree';
-  import { panel } from '../lib/ui.svelte';
+  import { panel, toast } from '../lib/ui.svelte';
+
+  let ltUrl = $state('');
+  let ltToken = $state('');
+  let ltBusy = $state(false);
+  let ltProblem = $state('');
+  async function linkLifeTracker(e: SubmitEvent) {
+    e.preventDefault();
+    ltBusy = true;
+    ltProblem = '';
+    try {
+      await ltLink(ltUrl, ltToken);
+      ltToken = '';
+      toast('Linked to Life Tracker');
+    } catch (err) {
+      ltProblem = (err as Error).message;
+      if (hosted) ltProblem += '. On the hosted site, its address must also be in the server’s CONNECT_SRC setting.';
+    } finally {
+      ltBusy = false;
+    }
+  }
 
   let { resolvedTheme }: { resolvedTheme: 'light' | 'dark' } = $props();
 
@@ -219,6 +240,24 @@
         <input type="checkbox" checked={s.showTodos} onchange={(e) => set({ showTodos: e.currentTarget.checked })} />
         <span>Show to-do list</span>
       </label>
+      {#if lt.link}
+        <p class="note">
+          Linked to Life Tracker at <em>{lt.link.url}</em>. Its to-dos, and anything recurring that's late, due or coming up, show on the
+          card; tasks you add go there.
+        </p>
+        <div class="row"><button class="btn" onclick={ltUnlink}>Unlink Life Tracker</button></div>
+      {:else}
+        <p class="note">
+          Link Life Tracker to show its to-dos and anything due on the card, and add to it from here. Make a token in Life Tracker under
+          Settings → Connected apps. It's kept in this browser only, so link each machine once.
+        </p>
+        <form class="lt-form" onsubmit={linkLifeTracker}>
+          <label class="field"><span>Life Tracker address</span><input class="input" bind:value={ltUrl} placeholder="https://life.example.com" required /></label>
+          <label class="field"><span>Token</span><input class="input" type="password" bind:value={ltToken} placeholder="lt_…" autocomplete="off" required /></label>
+          {#if ltProblem}<p class="note problem" role="alert">{ltProblem}</p>{/if}
+          <div class="row"><button class="btn primary" disabled={ltBusy}>{ltBusy ? 'Checking…' : 'Link Life Tracker'}</button></div>
+        </form>
+      {/if}
     </section>
 
     <section>
@@ -381,6 +420,13 @@
     font-size: 12.5px;
     line-height: 1.5;
     color: var(--text-muted);
+  }
+  .lt-form {
+    display: grid;
+    gap: 10px;
+  }
+  .note.problem {
+    color: var(--danger);
   }
   .segmented {
     display: flex;

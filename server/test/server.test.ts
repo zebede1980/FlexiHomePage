@@ -10,7 +10,7 @@ import { cleanReport } from '../src/machines.js';
 import { Monitor, deriveApps, deriveMachineApps, isPublicName, judge } from '../src/monitor.js';
 import { createMockBookmarks } from '../../src/lib/mock-chrome';
 
-const config = { port: 0, host: '127.0.0.1', dataDir: ':memory:', webDir: '/nonexistent', probeUrl: '', proxyHost: 'x' };
+const config = { port: 0, host: '127.0.0.1', dataDir: ':memory:', webDir: '/nonexistent', probeUrl: '', proxyHost: 'x', connectSrc: [] as string[] };
 
 type Shape = { title: string; url?: string; children?: Shape[] };
 const shape = (n: { title: string; url?: string; children?: unknown[] }): Shape => ({

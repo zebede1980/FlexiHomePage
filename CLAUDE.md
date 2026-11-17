@@ -79,6 +79,21 @@ src/components/ServerView.svelte, Sparkline.svelte, UptimeStrip.svelte   the Ser
 src/components/SignIn.svelte, HostedSettings.svelte                      hosted-only screens
 ```
 
+## Life Tracker on the to-do card
+
+- `src/lib/lifetracker.svelte.ts` talks straight from the page to Life Tracker's token API
+  (`/api/ext/*`, Bearer `lt_…`), which allows any origin. The extension needs no host
+  permission for it; the hosted site needs the Life Tracker origin in `CONNECT_SRC`
+  (env, space- or comma-separated origins, added to the page's `connect-src`; anything
+  that isn't a plain origin is dropped by `connectOrigins()` in `server/src/config.ts`).
+- The address and token are kept in this browser's `localStorage`
+  (`flexihome:lifetracker`), **never in the synced settings bookmark**: a token in a
+  bookmark would travel through Vivaldi Sync and the site's database. Each machine links
+  once (Settings → To-do list).
+- When linked, the card shows Life Tracker's list above FlexiHome's own items, and the add
+  box (with an S/M/L horizon picker) adds to Life Tracker instead. Refreshed on load, on
+  coming back to the tab, and every 5 minutes.
+
 ## The things that are easy to break
 
 - **Doubled bookmarks.** Two linked browsers that also share bookmarks through

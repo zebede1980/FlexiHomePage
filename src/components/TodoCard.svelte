@@ -6,6 +6,7 @@
   import { TODO_CARD_KEY } from '../lib/layout';
   import { settings } from '../lib/settings-store.svelte';
   import { addTodo, listTodos, removeTodo, setTodoDone, type Todo } from '../lib/todos';
+  import { NEEDS_YOU, addTask, done as ltDone, keepFresh, lt, takeBack, undoDone, type Horizon, type LtTask } from '../lib/lifetracker.svelte';
   import { DRAG_MIME, startDrag, toast } from '../lib/ui.svelte';
 
   let { index = 0 }: { index?: number } = $props();
@@ -16,6 +17,18 @@
   const open = $derived(todos.filter((t) => !t.done));
   const done = $derived(todos.filter((t) => t.done));
   const collapsed = $derived(settings.value.collapsed.includes(TODO_CARD_KEY));
+  const linked = $derived(!!lt.link);
+  let horizon = $state<Horizon>('medium');
+  const HORIZONS: { id: Horizon; short: string; title: string }[] = [
+    { id: 'short', short: 'S', title: 'Short term: within 3 days' },
+    { id: 'medium', short: 'M', title: 'Medium term: within 2 weeks' },
+    { id: 'long', short: 'L', title: 'Long term: within 3 months' },
+  ];
+
+  // Linked to Life Tracker: keep its list fresh while the page is open.
+  $effect(() => {
+    if (lt.link) return keepFresh();
+  });
 
   function toggle() {
     const list = settings.value.collapsed.filter((k) => k !== TODO_CARD_KEY);
@@ -35,7 +48,20 @@
     const text = draft.trim();
     if (!text) return;
     draft = '';
-    void attempt('add that', () => addTodo(text));
+    if (lt.link) {
+      const h = horizon;
+      void attempt('add that to Life Tracker', async () => {
+        const id = await addTask(text.slice(0, 60), h);
+        toast(`Added to Life Tracker (${HORIZONS.find((x) => x.id === h)!.title.split(':')[0].toLowerCase()})`, { label: 'Undo', run: () => takeBack(id) }, 10_000);
+      });
+    } else void attempt('add that', () => addTodo(text));
+  }
+
+  function tick(t: LtTask) {
+    void attempt('tick that off', async () => {
+      const logId = await ltDone(t);
+      toast(`${t.emoji} ${t.name}: done`, { label: 'Undo', run: () => undoDone(logId) }, 10_000);
+    });
   }
 
   /** Deletes straight away with an undo, like bookmarks. Undone items come back at the end of the list. */
@@ -55,6 +81,7 @@
     ...(done.length
       ? [{ label: `Clear ${done.length} done`, icon: 'check' as const, run: () => remove(done, `Cleared ${done.length} done`) }]
       : []),
+    ...(lt.link ? [{ label: 'Open Life Tracker', icon: 'link' as const, run: () => void window.open(lt.link!.url, '_blank', 'noopener') }] : []),
     { label: 'Hide to-do list', icon: 'x', run: () => settings.update({ showTodos: false }) },
   ]);
 
@@ -79,7 +106,19 @@
   </li>
 {/snippet}
 
-<Card bind:el id={TODO_CARD_KEY} title="To do" count={open.length} unit="to do" {index} {collapsed} ontoggle={toggle} {ondragstart}>
+{#snippet ltItem(t: LtTask)}
+  <li class="item lt {t.state}">
+    <label>
+      <input type="checkbox" checked={false} onchange={(e) => ((e.currentTarget.checked = false), tick(t))} aria-label="Done: {t.name}" />
+      <span class="text">
+        <a href={t.url} target="_blank" rel="noopener">{t.emoji} {t.name}</a>
+        <span class="sub">{t.label}{t.snoozed ? ' · snoozed' : ''}</span>
+      </span>
+    </label>
+  </li>
+{/snippet}
+
+<Card bind:el id={TODO_CARD_KEY} title="To do" count={open.length + lt.tasks.length} unit="to do" {index} {collapsed} ontoggle={toggle} {ondragstart}>
   {#snippet tools()}
     <Menu items={menu} label="To-do actions" />
   {/snippet}
@@ -92,13 +131,27 @@
       maxlength="500"
       onkeydown={(e) => e.key === 'Escape' && ((draft = ''), e.currentTarget.blur())}
     />
+    {#if linked}
+      <div class="horizon" role="radiogroup" aria-label="How soon">
+        {#each HORIZONS as h (h.id)}
+          <button type="button" role="radio" aria-checked={horizon === h.id} class:on={horizon === h.id} title={h.title} onclick={() => (horizon = h.id)}>{h.short}</button>
+        {/each}
+      </div>
+    {/if}
   </form>
+  {#if lt.error}<p class="lt-error">{lt.error}</p>{/if}
+  {#if lt.tasks.length}
+    <ul>
+      {#each lt.tasks.filter(NEEDS_YOU) as t (t.id)}{@render ltItem(t)}{/each}
+      {#each lt.tasks.filter((t) => !NEEDS_YOU(t)) as t (t.id)}{@render ltItem(t)}{/each}
+    </ul>
+  {/if}
   {#if todos.length}
     <ul>
       {#each open as t (t.id)}{@render item(t)}{/each}
       {#each done as t (t.id)}{@render item(t)}{/each}
     </ul>
-  {:else}
+  {:else if !lt.tasks.length && (!linked || lt.loaded)}
     <p class="empty">Nothing to do. Enjoy it.</p>
   {/if}
 </Card>
@@ -190,6 +243,50 @@
   .item:hover .icon-btn,
   .item:focus-within .icon-btn {
     opacity: 1;
+  }
+  .horizon {
+    display: flex;
+    gap: 2px;
+  }
+  .horizon button {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    color: var(--text-faint);
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .horizon button.on {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .lt .text {
+    display: grid;
+  }
+  .lt a {
+    color: inherit;
+    text-decoration: none;
+  }
+  .lt a:hover {
+    text-decoration: underline;
+  }
+  .lt .sub {
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--text-faint);
+  }
+  .lt.overdue .sub,
+  .lt.due .sub {
+    color: var(--danger);
+  }
+  .lt-error {
+    margin: 4px 8px;
+    color: var(--danger);
+    font-size: 12px;
   }
   .empty {
     margin: 4px 8px 6px;

@@ -379,7 +379,7 @@ export async function buildApp(db: Db, config: Config, opts: { logger?: boolean 
           res.header('x-frame-options', 'DENY');
           res.header(
             'content-security-policy',
-            "default-src 'self'; img-src * data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'",
+            `default-src 'self'; img-src * data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src ${["'self'", ...config.connectSrc].join(' ')}; frame-ancestors 'none'; base-uri 'none'; form-action 'self'`,
           );
         }
       },
