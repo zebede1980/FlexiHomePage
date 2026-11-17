@@ -23,6 +23,8 @@ services:
       - TZ=Europe/London
       - PROBE_URL=http://flexihome-probe:9100
       - PROXY_HOST=nginx-proxy-manager
+      # Other sites the page may call, e.g. Life Tracker for the to-do card. Set in .env.
+      - CONNECT_SRC=${CONNECT_SRC:-}
     depends_on:
       - probe
 
